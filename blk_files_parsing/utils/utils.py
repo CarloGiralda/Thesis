@@ -25,6 +25,8 @@ def merkle_root(lst):
 
 def read_bytes(file,n,byte_order = 'L'):
     data = file.read(n)
+    if len(data) < n:
+        return None
     if byte_order == 'L':
         data = data[::-1]
     data = data.hex().upper()

@@ -4,3 +4,5 @@ result/
 __pycache__/
 blockchain-parser.py
 blocks/
+other.py
+sorting.py

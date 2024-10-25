@@ -203,6 +203,8 @@ def parse_block(f):
     while tmpHex != 'D9B4BEF9':
         # Magic Number
         tmpHex = read_bytes(f, 4)
+        if tmpHex == None:
+            return None
 
     # Block size
     tmpHex = read_bytes(f, 4)
@@ -233,9 +235,13 @@ def parse_block(f):
 
     # Transactions
     transactions = []
-    transactions.append([f'Block Hash: {block_hash}', f'Previous Block Hash: {previous_block_hash}'])
+    transactions.append([f'Block Hash: {block_hash.upper()}', f'Previous Block Hash: {previous_block_hash.upper()}'])
     for k in range(txCount):
         transaction = parse_transaction(f)
+        # remove the Reward and Fees fields from the coinbase transactions list to make it similar to other transactions
+        if "Reward" in transaction[0] and "Fees" in transaction[1]:
+            transactions[0].append(transaction.pop(0))
+            transactions[0].append(transaction.pop(0))
         tx_hashes.append(transaction[-1][17:])
 
         transactions.append(transaction)

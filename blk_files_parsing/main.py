@@ -1,18 +1,18 @@
 import os
-import datetime
 from block_parsing.block_parser import block_parsing
 from transaction_parsing.transaction_parser import transaction_parsing
-from utils.sorting import process_blocks
+from transaction_parsing.sorting_files import process_blocks
 from tqdm import tqdm
 
-BLOCKS = True
+# BLOCKS parses the blk*.dat files to obtain blocks that contain all information
+BLOCKS = False
+# TRANSACTIONS is a more lightweight version of BLOCKS, where only information related to transactions are kept
 TRANSACTIONS = True
-FILE = True
-DATABASE = True
 
-dir_blocks = './blocks/' # Directory where blk*.dat files are stored
+dir_blocks = '/home/carlo/.bitcoin/blocks/' # Directory where blk*.dat files are stored
 dir_results_blocks = './result/blocks/' # Directory where to save blocks results
 dir_results_transactions = './result/transactions/' # Directory where to save transactions results
+dir_results_sorted_transactions = './result/sorted_transactions/' # Directory where to save sorted transactions results
 
 def blocks(files):
     general_counter = 0
@@ -45,13 +45,23 @@ def blocks(files):
 
         general_counter += len(blocks)
 
-    # BLOCK_DOWNLOAD_WINDOW = 1024 by default
-    #process_blocks(dir_results_transactions)
-
 def transactions(files):
     general_counter = 0
+    parsed_blocks = []
+
+    dir_parsed_blocks = dir_results_transactions + 'list_of_parsed_blocks.txt'
+    file_size = os.path.getsize(dir_parsed_blocks)
+    with open(dir_parsed_blocks, 'r') as file:
+        while file.tell() != file_size:
+            parsed_block = file.readline().strip()
+            parsed_blocks.append(parsed_block)
 
     for file_dat in files:
+        # skip if the file has already been processed
+        if file_dat in parsed_blocks:
+            print(f'Skip {file_dat} file')
+            continue
+
         blocks = []
 
         # path of the current block
@@ -65,7 +75,8 @@ def transactions(files):
                 while f.tell() != file_size:
                     block = transaction_parsing(f)
 
-                    blocks.append(block)
+                    if block is not None:
+                        blocks.append(block)
 
                     pbar.n = f.tell()
                     pbar.refresh()
@@ -82,8 +93,12 @@ def transactions(files):
 
         general_counter += len(blocks)
 
+        with open(dir_parsed_blocks, 'a+') as file:
+            file.write(file_dat + '\n')
+
+
     # BLOCK_DOWNLOAD_WINDOW = 1024 by default
-    #process_blocks(dir_results_transactions)
+    process_blocks(dir_results_transactions, dir_results_sorted_transactions)
 
 def main():
     files = os.listdir(dir_blocks)
