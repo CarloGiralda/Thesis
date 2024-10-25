@@ -6,3 +6,4 @@ blockchain-parser.py
 blocks/
 other.py
 sorting.py
+.gitignore
