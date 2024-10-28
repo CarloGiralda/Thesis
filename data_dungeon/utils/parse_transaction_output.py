@@ -57,7 +57,6 @@ def parse_script(script):
 def parse_transaction_output(script_hex):
     script = bytes.fromhex(script_hex)
     script_type, address_or_pubkeys = parse_script(script)
-    # remove initial b character that was added when converting to bytes
     if isinstance(address_or_pubkeys, bytes):
         address_or_pubkeys = address_or_pubkeys.decode('ascii')
     return script_type, address_or_pubkeys

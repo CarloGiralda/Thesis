@@ -1,5 +1,12 @@
 import hashlib
 import base58
+import struct
+from enum import Enum
+from binascii import hexlify
+
+# -------------------------------------------------------
+# Used in nlk*.dat file parsing
+# -------------------------------------------------------
 
 # reverse byte order
 def reverse(input):
@@ -57,6 +64,18 @@ def read_varint(file):
 
     return data
 
+# -------------------------------------------------------
+# Used in address conversion
+# -------------------------------------------------------
+
+class Encoding(Enum):
+    """Enumeration type to list the various supported encodings."""
+    BECH32 = 1
+    BECH32M = 2
+
+CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+BECH32M_CONST = 0x2bc830a3
+
 def base58_check_encode(prefix, payload):
     data = prefix + payload
     checksum = hashlib.sha256(hashlib.sha256(data).digest()).digest()[:4]
@@ -71,16 +90,6 @@ def ripemd160(data):
     h = hashlib.new('ripemd160')
     h.update(data)
     return h.digest()
-
-from enum import Enum
-
-class Encoding(Enum):
-    """Enumeration type to list the various supported encodings."""
-    BECH32 = 1
-    BECH32M = 2
-
-CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-BECH32M_CONST = 0x2bc830a3
 
 def bech32_polymod(values):
     """Internal function that computes the Bech32 checksum."""
@@ -178,4 +187,99 @@ def p2wsh_to_address(script_hash):
 
 def p2tr_to_address(script_hash):
     script_hash_5_bit = convertbits(script_hash, 8, 5)
-    return 'b' + bech32_encode('bc', [1] + script_hash_5_bit, spec=Encoding.BECH32M) # Bech32 mainnet human-readable part (hrp)
+    return bech32_encode('bc', [1] + script_hash_5_bit, spec=Encoding.BECH32M) # Bech32 mainnet human-readable part (hrp)
+
+# -------------------------------------------------------
+# Used in rev*.dat file parsing
+# -------------------------------------------------------
+
+def decode_varint(raw_hex):
+    """
+    Reads the weird format of VarInt present in src/serialize.h of bitcoin core
+    and being used for storing data in the leveldb.
+    This is not the VARINT format described for general bitcoin serialization
+    use.
+    """
+    n = 0
+    pos = 0
+    while True:
+        try:
+            data = raw_hex[pos]
+        except IndexError as e:
+            print("IndexError caught on raw_hex: ", raw_hex, e)
+            raise e
+        pos += 1
+        n = (n << 7) | (data & 0x7f)
+        if data & 0x80 == 0:
+            return n, pos
+        n += 1
+
+def decode_compactsize(data):
+    assert(len(data) > 0)
+    size = int(data[0])
+    assert(size <= 255)
+
+    if size < 253:
+        return size, 1
+
+    if size == 253:
+        format_ = '<H'
+    elif size == 254:
+        format_ = '<I'
+    elif size == 255:
+        format_ = '<Q'
+    else:
+        # Should never be reached
+        assert 0, "unknown format_ for size : %s" % size
+
+    size = struct.calcsize(format_)
+    return struct.unpack(format_, data[1:size+1])[0], size + 1
+
+def decompress_txout_amt(amount_compressed_int):
+    # (this function stolen from https://github.com/sr-gi/bitcoin_tools and modified to remove bug)
+    # No need to do any work if it's zero.
+    if amount_compressed_int == 0:
+        return 0
+
+    # The decompressed amount is either of the following two equations:
+    # x = 1 + 10*(9*n + d - 1) + e
+    # x = 1 + 10*(n - 1)       + 9
+    amount_compressed_int -= 1
+
+    # The decompressed amount is now one of the following two equations:
+    # x = 10*(9*n + d - 1) + e
+    # x = 10*(n - 1)       + 9
+    exponent = amount_compressed_int % 10
+    
+    # integer division
+    amount_compressed_int //= 10
+
+    # The decompressed amount is now one of the following two equations:
+    # x = 9*n + d - 1  | where e < 9
+    # x = n - 1        | where e = 9
+    n = 0
+    if exponent < 9:
+        lastDigit = amount_compressed_int%9 + 1
+        # integer division
+        amount_compressed_int //= 9
+        n = amount_compressed_int*10 + lastDigit
+    else:
+        n = amount_compressed_int + 1
+
+    # Apply the exponent.
+    return n * 10**exponent
+
+def change_endianness(x):
+    """ Changes the endianness (from BE to LE and vice versa) of a given value.
+
+    :param x: Given value which endianness will be changed.
+    :type x: hex str
+    :return: The opposite endianness representation of the given value.
+    :rtype: hex str
+    """
+
+    # If there is an odd number of elements, we make it even by adding a 0
+    if (len(x) % 2) == 1:
+        x += b'\x00'
+    z = x[::-1]
+    return hexlify(z)

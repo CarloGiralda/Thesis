@@ -1,9 +1,4 @@
 venv/
-bitcoin_database.ini
 result/
 __pycache__/
-blockchain-parser.py
-blocks/
-other.py
-sorting.py
-.gitignore
+tests/
