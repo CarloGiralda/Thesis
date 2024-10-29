@@ -1,4 +1,7 @@
 venv/
 result/
-__pycache__/
+chainstate_clone/
+input_data/
 tests/
+compare_files.py
+__pycache__/

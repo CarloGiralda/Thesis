@@ -1,13 +1,9 @@
+import hashlib
 import mmap
-from binascii import unhexlify, hexlify
-from utils.utils import reverse, p2wpkh_to_address, sha256
+from utils.utils import reverse
 from utils.parse_transaction_output import parse_transaction_output
 from utils.parse_transaction_input import parse_transaction_input
-from utils.parse_witness import public_key_to_hash160
 from utils.address_conversion import input_script_to_addr
-
-COINBASE_REWARD = 312500000 # expressed in satoshis
-IS_COINBASE = False
 
 def read_bytes_from_str(str, pos, n, byte_order = 'L'):
     data = str[pos:pos+n]
@@ -41,18 +37,18 @@ def read_varint_from_str(str, pos):
     return data, new_pos - pos
 
 def parse_transaction(mmap_obj, pos):
-    global IS_COINBASE
-    global COINBASE_REWARD
     transaction = {}
 
-    tmpHex = ''
-
     # Version Number
+    tmpHex = read_bytes_from_str(mmap_obj, pos, 4)
     pos += 4
+    RawTX = reverse(tmpHex)
+    tmpHex = ''
 
     # Check if there is the optional two-byte array flag for witness data
     Witness = False
     b = read_bytes_from_str(mmap_obj, pos, 1)
+    tmpB = b.upper()
     bInt = int(b, 16)
     pos += 1
     
@@ -61,6 +57,7 @@ def parse_transaction(mmap_obj, pos):
         c = 0
         c = read_bytes_from_str(mmap_obj, pos, 1)
         bInt = int(c, 16)
+        tmpB = c.upper()
         pos += 1
         Witness = True
 
@@ -69,6 +66,7 @@ def parse_transaction(mmap_obj, pos):
     if bInt < 253:
         c = 1
         tmpHex = hex(bInt)[2:].upper().zfill(2)
+        tmpB = ''
     if bInt == 253: c = 3
     elif bInt == 254: c = 5
     elif bInt == 255: c = 9
@@ -79,6 +77,9 @@ def parse_transaction(mmap_obj, pos):
 
     inCount = int(tmpHex, 16)
 
+    tmpHex += tmpB
+    RawTX += reverse(tmpHex)
+
     inputs = []
 
     # Inputs
@@ -86,16 +87,25 @@ def parse_transaction(mmap_obj, pos):
         input = {}
 
         tmpHex = read_bytes_from_str(mmap_obj, pos, 32)  # Previous Transaction Hash
+        transaction['Previous Transaction Hash'] = tmpHex
         pos += 32
-        if tmpHex == '00' * 32:
-            IS_COINBASE = True
+        RawTX += reverse(tmpHex)
 
-        # Previous Transaction Output Index
+        tmpHex = read_bytes_from_str(mmap_obj, pos, 4)  # Previous Transaction Output Index
+        transaction['Previous Transaction Output Index'] = tmpHex
         pos += 4
+        RawTX += reverse(tmpHex)
 
+        b = read_bytes_from_str(mmap_obj, pos, 1)
+        bInt = int(b, 16)
+        tmpB = ''
+        if bInt >= 253:
+            tmpB = b.upper()
         tmpHex, offset = read_varint_from_str(mmap_obj, pos)  # Input script length
         scriptLength = int(tmpHex, 16)
         pos += offset
+        tmpHex += tmpB
+        RawTX += reverse(tmpHex)
 
         tmpHex = read_bytes_from_str(mmap_obj, pos, scriptLength, 'B')  # Input script
         pos += scriptLength
@@ -105,20 +115,28 @@ def parse_transaction(mmap_obj, pos):
             addr = addr.decode('utf-8')
         input['Sender'] = addr
         input['Value'] = 0
+        RawTX += tmpHex
 
-        # Sequence number
+        tmpHex = read_bytes_from_str(mmap_obj, pos, 4, 'B')  # Sequence number
         pos += 4
+        RawTX += tmpHex
 
         inputs.append(input)
 
     transaction['Inputs'] = inputs
 
     # Outputs count
+    b = read_bytes_from_str(mmap_obj, pos, 1)
+    bInt = int(b, 16)
+    tmpB = ''
+    if bInt >= 253:
+        tmpB = b.upper()
     tmpHex, offset = read_varint_from_str(mmap_obj, pos)
     outputCount = int(tmpHex, 16)
+    tmpHex = tmpHex + tmpB
     pos += offset
+    RawTX += reverse(tmpHex)
 
-    reward = 0
     outputs = []
 
     # Outputs
@@ -128,12 +146,18 @@ def parse_transaction(mmap_obj, pos):
         tmpHex = read_bytes_from_str(mmap_obj, pos, 8)  # Value
         value = int(tmpHex, 16)
         pos += 8
-        if IS_COINBASE:
-            reward += value
+        RawTX += reverse(tmpHex)
 
+        b = read_bytes_from_str(mmap_obj, pos, 1)
+        bInt = int(b, 16)
+        tmpB = ''
+        if bInt >= 253:
+            tmpB = b.upper()
         tmpHex, offset = read_varint_from_str(mmap_obj, pos)  # Output script length
         scriptLength = int(tmpHex, 16)
+        tmpHex = tmpHex + tmpB
         pos += offset
+        RawTX += reverse(tmpHex)
 
         tmpHex = read_bytes_from_str(mmap_obj, pos, scriptLength, 'B')  # Output script
         script_type, address = parse_transaction_output(tmpHex)
@@ -147,16 +171,11 @@ def parse_transaction(mmap_obj, pos):
         pos += scriptLength
         output['Receiver'] = address
         output['Value'] = value
+        RawTX += tmpHex
 
         outputs.append(output)
 
     transaction['Outputs'] = outputs
-
-    if IS_COINBASE:
-        fees = reward - COINBASE_REWARD
-        transaction['Reward'] = reward
-        transaction['Fees'] = fees
-        IS_COINBASE = False
 
     if Witness:
         for m in range(inCount):
@@ -169,19 +188,22 @@ def parse_transaction(mmap_obj, pos):
                 pos += offset
                 tmpHex = read_bytes_from_str(mmap_obj, pos, WitnessItemLength)
                 pos += WitnessItemLength
-                
-                # length = 33 means that the item is a public key
-                if WitnessItemLength == 33 and transaction['Inputs'][m]['Sender'] == None:
-                    public_key = reverse(tmpHex)
-                    public_key_hash = public_key_to_hash160(public_key)
-                    address = p2wpkh_to_address(bytes.fromhex(public_key_hash))
-
-                    transaction['Inputs'][m]['Sender'] = address
     
     Witness = False
 
     # Locktime
+    tmpHex = read_bytes_from_str(mmap_obj, pos, 4)
     pos += 4
+    RawTX += reverse(tmpHex)
+
+    # Transaction Hash
+    tmpHex = RawTX
+    tmpHex = bytes.fromhex(tmpHex)
+    tmpHex = hashlib.new('sha256', tmpHex).digest()
+    tmpHex = hashlib.new('sha256', tmpHex).digest()
+    tmpHex = tmpHex[::-1]
+    tmpHex = tmpHex.hex().upper()
+    transaction['Transaction Hash'] = tmpHex
 
     return transaction, pos
 
@@ -197,39 +219,18 @@ def parse_block(mmap_obj, start_pos=0):
         if tmpHex == None:
             return None
 
-    # Block Size
-    pos += 4
-
-    # Block Header
-    block_header = read_bytes_from_str(mmap_obj, pos, 80, 'B')
-    block_header_bytes = unhexlify(block_header)
-    hash = sha256(sha256(block_header_bytes))
-    block_hash = hexlify(hash[::-1]).decode('utf-8').upper()
-
-    pos += 4 # Skip version number
-    previous_block_hash = read_bytes_from_str(mmap_obj, pos, 32)
-    pos += 32
-    pos += 32 + 4 + 4 + 4  # Skip merkle root, timestamp, bits, nonce
+    pos += 4 + 4 + 32 + 32 + 4 + 4 + 4  # Skip block size, version number, previous block hash, merkle root, timestamp, bits, nonce
 
     # Transaction count
     tx_count_bytes, offset = read_varint_from_str(mmap_obj, pos)
     tx_count = int(tx_count_bytes, 16)
     pos += offset
 
-    block['Block Hash'] = block_hash
-    block['Previous Block Hash'] = previous_block_hash
     transactions = []
 
     for index in range(tx_count):
         transaction, new_pos = parse_transaction(mmap_obj, pos)
         pos = new_pos
-
-        # if it is 0, then the transaction is a coinbase transaction
-        if index == 0:
-            reward = transaction.pop('Reward')
-            fees = transaction.pop('Fees')
-            block['Reward'] = reward
-            block['Fees'] = fees
 
         transactions.append(transaction)
 
@@ -237,7 +238,7 @@ def parse_block(mmap_obj, start_pos=0):
 
     return block
 
-def block_parsing(file_path, start_pos=0):
+def block_parsing_utxo(file_path, start_pos=0):
     with open(file_path, "rb") as f:
         mm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
         return parse_block(mm, start_pos)
