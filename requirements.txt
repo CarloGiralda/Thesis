@@ -1,3 +1,5 @@
 base58
 tqdm
 pyyaml
+pandas
+tables
