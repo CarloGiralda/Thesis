@@ -2,6 +2,6 @@ venv/
 result/
 input_data/
 temp/
-check.py
+tests.py
 compare_files.py
 __pycache__/

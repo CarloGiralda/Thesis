@@ -1,8 +1,8 @@
 import pandas as pd
 import time
-from data_dungeon.database.database import create_connection, create_table, insert_many_accounts
+from database.database import create_connection, create_table, insert_many_accounts
 
-def address_extraction(csv_file, chunk_size):
+def address_extraction(csv_file, chunk_size=1000000):
     addresses = {}
 
     with pd.read_csv(csv_file, chunksize=chunk_size) as reader:

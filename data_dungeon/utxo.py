@@ -1,14 +1,10 @@
-import os
-from address_extraction import address_extraction
-from utxo_reverse import utxo_reverse
+from utxo_hub.address_extraction import address_extraction
 
 dir_transactions = './result/utxos/'
-csv_file = '/home/carlo/Documents/PythonProjects/BitcoinParser/result/utxo/utxodump_856000.csv'
-
-chunk_size = 1000000
+csv_file = '/home/carlo/Documents/PythonProjects/BitcoinParser/result/utxo/utxodump_856003.csv'
 
 def main():
-    address_extraction(csv_file, chunk_size)
+    address_extraction(csv_file)
 
 if __name__ == '__main__':
     main()

@@ -1,5 +1,4 @@
 import sqlite3
-import sys
 
 # Connect to SQLite database (or create it if it doesn't exist)
 def create_connection(db_name="./result/utxo/accounts.db"):
@@ -35,10 +34,24 @@ def retrieve_address(conn, address):
         return address, 0
     return account[0], account[1]
 
-# Retrieve all accounts
+# Retrieve all eligible addresses
 def retrieve_eligible_addresses(conn, minimum, maximum):
     cursor = conn.cursor()
     cursor.execute("SELECT address FROM accounts WHERE balance BETWEEN ? AND ?;", (minimum, maximum))
+    rows = cursor.fetchall()
+    return rows
+
+# Retrieve all eligible accounts
+def retrieve_eligible_accounts(conn, minimum, maximum):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM accounts WHERE balance BETWEEN ? AND ?;", (minimum, maximum))
+    rows = cursor.fetchall()
+    return rows
+
+# Retrieve all non-eligible accounts
+def retrieve_non_eligible_accounts(conn, minimum, maximum):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM accounts WHERE balance < ? OR balance > ?;", (minimum, maximum))
     rows = cursor.fetchall()
     return rows
 
@@ -52,8 +65,3 @@ def retrieve_all_accounts(conn):
         if len(rows) == 0:
             break
         yield rows
-
-# Update balance for a specific address
-def update_balance(conn, address, new_balance):
-    with conn:
-        conn.execute("UPDATE accounts SET balance = ? WHERE address = ?;", (new_balance, address))

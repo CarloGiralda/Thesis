@@ -101,8 +101,6 @@ def parse_transaction(mmap_obj, pos):
         pos += scriptLength
         script_type, public_key = parse_transaction_input(tmpHex)
         addr = input_script_to_addr(script_type, public_key)
-        if isinstance(addr, bytes):
-            addr = addr.decode('utf-8')
         input['Sender'] = addr
         input['Value'] = 0
 

@@ -183,7 +183,7 @@ def p2wpkh_to_address(pubkey_hash):
 
 def p2wsh_to_address(script_hash):
     script_hash_5_bit = convertbits(script_hash, 8, 5)
-    return bech32_encode('bc', script_hash_5_bit, spec=Encoding.BECH32) # Bech32 mainnet human-readable part (hrp)
+    return bech32_encode('bc', [0] + script_hash_5_bit, spec=Encoding.BECH32) # Bech32 mainnet human-readable part (hrp)
 
 def p2tr_to_address(script_hash):
     script_hash_5_bit = convertbits(script_hash, 8, 5)

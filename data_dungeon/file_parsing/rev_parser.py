@@ -39,7 +39,7 @@ def decompress_script(raw_hex):
             print('expected size: 33')
             return None, None
         script_type_str = 'P2PK'
-        address = input_script_to_addr(compressed_script, 'P2PKH Input')
+        address = input_script_to_addr('P2PKH Input', compressed_script)
         
     elif script_type in [4, 5]:
         if len(compressed_script) != 33:
@@ -51,11 +51,16 @@ def decompress_script(raw_hex):
         compressed_script = prefix + compressed_script[2:]
 
         script_type_str = 'P2PK'
-        address = input_script_to_addr(compressed_script, 'P2PKH Input')
+        address = input_script_to_addr('P2PKH Input', compressed_script)
     
     else:
         compressed_script = compressed_script.hex()
         script_type_str, address = parse_transaction_output(compressed_script)
+
+    if isinstance(address, bytes):
+        address = address.decode('utf-8')
+    elif isinstance(address, list):
+        address = 'UNKNOWN'
 
     return script_type_str, address
 
