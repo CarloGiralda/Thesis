@@ -161,16 +161,24 @@ def parse_transaction(mmap_obj, pos):
             tmpHex, offset = read_varint_from_str(mmap_obj, pos)
             WitnessLength = int(tmpHex, 16)
             pos += offset
+
+            witnesses = []
+
             for j in range(WitnessLength):
                 tmpHex, offset = read_varint_from_str(mmap_obj, pos)
                 WitnessItemLength = int(tmpHex, 16)
                 pos += offset
                 tmpHex = read_bytes_from_str(mmap_obj, pos, WitnessItemLength)
                 pos += WitnessItemLength
-                
-                # length = 33 means that the item is a public key
-                if WitnessItemLength == 33 and transaction['Inputs'][m]['Sender'] == None:
-                    public_key = reverse(tmpHex)
+
+                # save both the length and the value
+                witnesses.append(WitnessItemLength)
+                witnesses.append(tmpHex)
+            
+            if len(witnesses) == 4:
+                # addresses can be retrieved by witnesses if the transaction is either P2WPKH or P2SH-P2WPKH
+                if witnesses[0] == 72 and witnesses[2] == 33 and transaction['Inputs'][m]['Sender'] == None:
+                    public_key = reverse(witnesses[3])
                     public_key_hash = public_key_to_hash160(public_key)
                     address = p2wpkh_to_address(bytes.fromhex(public_key_hash))
 

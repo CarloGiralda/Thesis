@@ -1,10 +1,11 @@
-fee:
-  # percentage of fees to be redistributed
-  percentage: 0.5
-
 redistribution:
-  # type of redistribution (linear, weight-based)
+  # type of redistribution (linear, proportional)
   type: 'linear'
+  # percentage of amount to be redistributed
+  percentage: 0.5
+  # amount to redistribute
+  # [fees, block_reward, total_reward]
+  amount: 'block_reward'
   # minimum balance (in SAT) of users to receive redistribution
   # used to avoid null or very small amounts (probably, unused wallets)
   minimum: 10000
