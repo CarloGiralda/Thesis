@@ -4,11 +4,12 @@ import gc
 import queue
 import time
 import math
+import numpy_minmax
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from tqdm import tqdm
-from redistribution_space.utils import get_block, extract_height_from_name, plot_balance_histogram, plot_redistribution_histogram
-from database.database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
+from redistribution_space.utils import get_block, extract_height_from_name, plot_balance_histogram, plot_linear_redistribution_histogram, plot_weight_based_metrics
+from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
 # number of readers for blocks
 num_readers = 2
@@ -145,7 +146,7 @@ def perform_block_transactions(eligible_addresses, eligible_balances, invalid_ba
 
     return eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add
             
-def perform_redistribution(type, amount, percentage, block, number_of_file,
+def perform_redistribution(type, amount, percentage, block, number_of_file, invalid_balances,
                             redistribution, eligible_balances, elements_to_add):
     # fees payed by users
     fees = block['Fees']
@@ -161,14 +162,18 @@ def perform_redistribution(type, amount, percentage, block, number_of_file,
     elif amount == 'total_reward':
         max_block_redistribution = total_reward * percentage
     else:
-        max_block_redistribution = total_reward
+        max_block_redistribution = 0
     
     if len(elements_to_add) > 0:
         eligible_balances = np.append(eligible_balances, elements_to_add)
         elements_to_add.clear()
     num_users = len(eligible_balances)
+
+    if type == 'no_redistribution':
+
+        actual_block_redistribution = 0
     
-    if type == 'linear':
+    elif type == 'equal':
 
         redistribution_per_user = int(math.floor(max_block_redistribution / num_users)) if num_users > 0 else 0
         redistribution[number_of_file] = redistribution_per_user
@@ -176,6 +181,28 @@ def perform_redistribution(type, amount, percentage, block, number_of_file,
 
         if redistribution_per_user > 0:
             eligible_balances += redistribution_per_user
+
+    elif type == 'weight_based':
+
+        # mask array to select only the valid balances (not all of them are valid)
+        mask = np.ones(len(eligible_balances), dtype=bool)
+        mask[invalid_balances] = False
+        # compute the inverse of the eligible balances
+        # by doing this, the lowest balance will have the highest weight, while the highest balance will have the lowest weight
+        inverse_weights = np.where(mask, 1 / eligible_balances, 0)
+        # normalize the weights
+        normalized_weights = inverse_weights / inverse_weights.sum()
+        # compute the redistributed amount for each user
+        redistributed_amounts = (normalized_weights * max_block_redistribution).astype(int)
+
+        actual_block_redistribution = np.sum(redistributed_amounts)
+        min_redistribution, max_redistribution = numpy_minmax.minmax(redistributed_amounts)
+        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = np.percentile(redistributed_amounts, [25, 50, 75])
+
+        redistribution[number_of_file] = [actual_block_redistribution, max_redistribution, min_redistribution, 
+                                          perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+        
+        eligible_balances += redistributed_amounts
 
     new_total_reward = total_reward - actual_block_redistribution
     # ratio between previous total reward and redistributed total reward
@@ -205,7 +232,7 @@ def process_blocks(eligible_addresses, eligible_balances, invalid_balances, non_
                 minimum, maximum, block)
 
             redistribution, eligible_balances, elements_to_add, ratio = perform_redistribution(
-                type, amount, percentage, block, number_of_file, 
+                type, amount, percentage, block, number_of_file, invalid_balances, 
                 redistribution, eligible_balances, elements_to_add)
 
             # to not waste the SATs of the approximation (math.floor), their number is kept in this variable
@@ -359,4 +386,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, am
         gc.collect()
 
     plot_balance_histogram(path_accounts)
-    plot_redistribution_histogram(path_redistribution)
+    if type == 'linear':
+        plot_linear_redistribution_histogram(path_redistribution)
+    elif type == 'weight_based':
+        plot_weight_based_metrics(path_redistribution)

@@ -26,21 +26,6 @@ def insert_many_accounts(conn, accounts):
     with conn:
         conn.executemany("INSERT INTO accounts (address, balance) VALUES (?, ?);", accounts)
 
-def retrieve_address(conn, address):
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM accounts WHERE address = ?;", (address,))
-    account = cursor.fetchone()
-    if account == None:
-        return address, 0
-    return account[0], account[1]
-
-# Retrieve all eligible addresses
-def retrieve_eligible_addresses(conn, minimum, maximum):
-    cursor = conn.cursor()
-    cursor.execute("SELECT address FROM accounts WHERE balance BETWEEN ? AND ?;", (minimum, maximum))
-    rows = cursor.fetchall()
-    return rows
-
 # Retrieve all eligible accounts
 def retrieve_eligible_accounts(conn, minimum, maximum):
     cursor = conn.cursor()
@@ -60,8 +45,5 @@ def retrieve_all_accounts(conn):
     rows = []
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM accounts;")
-    while True:
-        rows = cursor.fetchmany(size=1000000)
-        if len(rows) == 0:
-            break
-        yield rows
+    rows = cursor.fetchall()
+    return rows

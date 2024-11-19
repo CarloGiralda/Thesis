@@ -3,3 +3,4 @@ tqdm
 pyyaml
 pandas
 tables
+numpy_minmax

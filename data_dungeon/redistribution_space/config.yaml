@@ -1,11 +1,13 @@
 redistribution:
-  # type of redistribution (linear, proportional)
-  type: 'linear'
+  # type of redistribution
+  # [no_redistribution, equal, weight_based]
+  # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
+  type: 'weight_based'
   # percentage of amount to be redistributed
   percentage: 0.5
   # amount to redistribute
   # [fees, block_reward, total_reward]
-  amount: 'block_reward'
+  amount: 'total_reward'
   # minimum balance (in SAT) of users to receive redistribution
   # used to avoid null or very small amounts (probably, unused wallets)
   minimum: 10000
