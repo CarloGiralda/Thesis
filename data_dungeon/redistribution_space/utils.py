@@ -22,6 +22,15 @@ def get_block(filename):
 def extract_height_from_name(file):
     return int(file.replace('block_', '').replace('.txt', ''))
 
+def distribute(extra_fee_amount, num_outputs):
+    base, extra = divmod(extra_fee_amount, num_outputs)
+    # Create an array filled with `base`
+    result = np.full(num_outputs, base, dtype=np.int64)
+    # Add 1 to the first `extra` elements
+    if extra > 0:
+        result[:extra] += 1
+    return result
+
 def _process_balance_chunk(chunk):
     local_counts = {'= 0': 0, '0 ~ 10000': 0, '10000 ~ 1000000': 0, '1000000 ~ 100000000': 0, '> 100000000': 0}
 

@@ -4,5 +4,4 @@ input_data/
 temp/
 tests.py
 compare_files.py
-data_dungeon/redistribution_space/multi_input_redistribution_paradise.py
 __pycache__/

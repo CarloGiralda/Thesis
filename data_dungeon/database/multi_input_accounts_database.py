@@ -38,14 +38,14 @@ def insert_many_accounts(conn, accounts):
 # Retrieve all eligible accounts
 def retrieve_eligible_accounts(conn, minimum, maximum):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM accounts JOIN addresses ON accounts.user = addresses.user WHERE accounts.balance BETWEEN ? AND ?;", (minimum, maximum))
+    cursor.execute("SELECT addresses.address, accounts.user, accounts.balance FROM accounts JOIN addresses ON accounts.user = addresses.user WHERE accounts.balance BETWEEN ? AND ?;", (minimum, maximum))
     rows = cursor.fetchall()
     return rows
 
 # Retrieve all non-eligible accounts
 def retrieve_non_eligible_accounts(conn, minimum, maximum):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM accounts JOIN addresses ON accounts.user = addresses.user WHERE accounts.balance < ? OR balance > ?;", (minimum, maximum))
+    cursor.execute("SELECT addresses.address, accounts.user, accounts.balance FROM accounts JOIN addresses ON accounts.user = addresses.user WHERE accounts.balance < ? OR balance > ?;", (minimum, maximum))
     rows = cursor.fetchall()
     return rows
 
@@ -54,5 +54,12 @@ def retrieve_all_accounts(conn):
     rows = []
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM accounts JOIN addresses ON accounts.user = addresses.user;")
+    rows = cursor.fetchall()
+    return rows
+
+def retrieve_user_from_address(conn, address):
+    rows = []
+    cursor = conn.cursor()
+    cursor.execute("SELECT user FROM addresses WHERE address = ?;", (address,))
     rows = cursor.fetchall()
     return rows
