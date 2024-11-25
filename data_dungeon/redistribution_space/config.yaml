@@ -3,13 +3,17 @@ addresses:
   # [single_input, multi_input]
   # single_input means that each address is treated as a separate account
   # multi_input is based on multi-input heuristics where all addresses that belong to the set of inputs of the same transaction are classified as a single entity
-  grouping: 'multi_input'
+  grouping: 'single_input'
 
 extra_fee:
   # extra fee amount in SATs
   # fee applied to the outputs of each transaction (except for the coinbase transaction)
   # set it to 0 for no extra fee
   amount_per_transaction: 0
+  # extra fee amount in percentage
+  # fee applied to the outputs of each transaction (except for the coinbase transaction)
+  # set it to 0.0 for no extra fee
+  percentage_per_transaction: 0.001
 
 redistribution:
   # type of redistribution

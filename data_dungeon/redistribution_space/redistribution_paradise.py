@@ -19,7 +19,7 @@ lock = 0
 
 def perform_input_output(address, payment, input_output, 
                          eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                         minimum, maximum, len_eligible_balances, extra_fee_per_output):
+                         minimum, maximum, len_eligible_balances, extra_fee_per_output, extra_fee_percentage_per_output):
     
     if address in eligible_addresses:
         index = eligible_addresses[address]
@@ -31,7 +31,7 @@ def perform_input_output(address, payment, input_output,
         if input_output == 0:
             updated_balance = balance - payment
         else:
-            updated_balance = balance + payment - extra_fee_per_output
+            updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
         
         # if the address is still eligible, then update the balance, eligible_subsequent_addresses and eligible_accounts_near_non_eligibility (if its balance is higher than the threshold)
         if minimum <= updated_balance <= maximum:
@@ -52,7 +52,7 @@ def perform_input_output(address, payment, input_output,
         if input_output == 0:
             updated_balance = balance - payment
         else:
-            updated_balance = balance + payment - extra_fee_per_output
+            updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
         # if the address is eligible now, then add it to eligible_accounts (and to eligible_accounts_near_non_eligibility, if it satisfies the threshold)
         # update eligible_subsequent_addresses
         # remove it from non_eligible_accounts
@@ -82,7 +82,7 @@ def perform_input_output(address, payment, input_output,
         if input_output == 0:
             updated_balance = balance - payment
         else:
-            updated_balance = balance + payment - extra_fee_per_output
+            updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
         # if the address is eligible now, then add it to eligible_accounts (and to eligible_accounts_near_non_eligibility, if it satisfies the threshold)
         # update eligible_subsequent_addresses
         # remove it from non_eligible_accounts
@@ -107,9 +107,13 @@ def perform_input_output(address, payment, input_output,
     return eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add
 
 def perform_block_transactions(eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                               minimum, maximum, block, extra_fee_amount):
+                               minimum, maximum, block, extra_fee_amount, extra_fee_percentage):
     # number of eligible accounts
     len_eligible_balances = len(eligible_balances)
+    total_extra_fee_percentage = 0
+
+    # extra fee computed for each output if the fee is a percentage
+    extra_fee_percentage_per_output = 0
 
     for index, transaction in enumerate(block['Transactions']):
         # skip coinbase transaction
@@ -128,14 +132,18 @@ def perform_block_transactions(eligible_addresses, eligible_balances, invalid_ba
             eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
                 sender, payment, 0, 
                 eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                minimum, maximum, len_eligible_balances, 0)
-            
+                minimum, maximum, len_eligible_balances, 0, 0)
+        
         num_outputs = len(transaction['Outputs'])
         extra_fee_per_output = distribute(extra_fee_amount, num_outputs)
 
         for output_index, output in enumerate(transaction['Outputs']):
             receiver = output['Receiver']
             payment = output['Value']
+
+            if extra_fee_percentage > 0.0:
+                extra_fee_percentage_per_output = math.ceil(extra_fee_percentage * payment)
+                total_extra_fee_percentage += extra_fee_percentage_per_output
 
             if isinstance(receiver, list):
                 continue
@@ -145,9 +153,9 @@ def perform_block_transactions(eligible_addresses, eligible_balances, invalid_ba
             eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
                 receiver, payment, 1, 
                 eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                minimum, maximum, len_eligible_balances, extra_fee_per_output[output_index])
+                minimum, maximum, len_eligible_balances, extra_fee_per_output[output_index], extra_fee_percentage_per_output)
 
-    return eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add
+    return eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, total_extra_fee_percentage
             
 def perform_redistribution(type, amount, percentage, block, number_of_file, invalid_balances, total_extra_fee,
                             redistribution, eligible_balances, elements_to_add):
@@ -238,7 +246,7 @@ def perform_redistribution(type, amount, percentage, block, number_of_file, inva
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
 # the redistribution to other accounts is performed afterwards
 def process_blocks(eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, 
-                   len_files, minimum, maximum, percentage, type, amount, extra_fee_amount):
+                   len_files, minimum, maximum, percentage, type, amount, extra_fee_amount, extra_fee_percentage):
     global file_queue
     number_of_file = 0
 
@@ -251,12 +259,14 @@ def process_blocks(eligible_addresses, eligible_balances, invalid_balances, non_
                 break  # End of files
             _, block = item
 
-            eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_block_transactions(
+            eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, total_extra_fee_percentage = perform_block_transactions(
                 eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                minimum, maximum, block, extra_fee_amount)
+                minimum, maximum, block, extra_fee_amount, extra_fee_percentage)
             
-            # total extra fee per block is equal to the extra_fee_amount for each transaction multiplied by the number of transactions (minus the coinbase transaction)
-            total_extra_fee = extra_fee_amount * (len(block['Transactions']) - 1)
+            # total extra fee per block is equal to 
+            # extra_fee_amount for each transaction multiplied by the number of transactions (minus the coinbase transaction) +
+            # the amount sent multiplied by extra_fee_percentage
+            total_extra_fee = extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage
 
             redistribution, eligible_balances, elements_to_add, ratio = perform_redistribution(
                 type, amount, percentage, block, number_of_file, invalid_balances, total_extra_fee,
@@ -284,7 +294,7 @@ def process_blocks(eligible_addresses, eligible_balances, invalid_balances, non_
                 eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
                     receiver, payment, 1, 
                     eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                    minimum, maximum, len(eligible_balances), 0)
+                    minimum, maximum, len(eligible_balances), 0, 0)
 
             number_of_file += 1
             pbar.update(1)
@@ -314,11 +324,11 @@ def read_files(files, thread_number, dir_sorted_blocks):
 
             reading_pbar.update(1)
 
-def redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount):
+def redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount, extra_fee_percentage):
     global file_queue
     global lock
 
-    folder = f'{percentage}_{minimum}_{maximum}_{extra_fee_amount}'
+    folder = f'{percentage}_{minimum}_{maximum}_{extra_fee_amount}_{extra_fee_percentage}'
     dir_results_folder = f'{dir_results}/single_input/{type}/{folder}'
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
@@ -366,7 +376,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, am
 
             futures_readers = [readers.submit(read_files, files, i, dir_sorted_blocks) for i in range(num_readers)]
 
-            futures_processors = [processors.submit(process_blocks, eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, len_files, minimum, maximum, percentage, type, amount, extra_fee_amount)]
+            futures_processors = [processors.submit(process_blocks, eligible_addresses, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, len_files, minimum, maximum, percentage, type, amount, extra_fee_amount, extra_fee_percentage)]
 
             # wait for all readers to complete
             wait(futures_readers)

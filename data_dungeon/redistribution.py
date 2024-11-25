@@ -12,6 +12,7 @@ def main():
     
     addresses = cfg['addresses']['grouping']
     extra_fee_amount = cfg['extra_fee']['amount_per_transaction']
+    extra_fee_percentage = cfg['extra_fee']['percentage_per_transaction']
     type = cfg['redistribution']['type']
     percentage = cfg['redistribution']['percentage']
     amount = cfg['redistribution']['amount']
@@ -19,9 +20,9 @@ def main():
     maximum = cfg['redistribution']['maximum']
 
     if addresses == 'single_input':
-        redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount)
+        redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount, extra_fee_percentage)
     elif addresses == 'multi_input':
-        multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount)
+        multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, type, percentage, amount, minimum, maximum, extra_fee_amount, extra_fee_percentage)
 
 if __name__ == '__main__':
     main()

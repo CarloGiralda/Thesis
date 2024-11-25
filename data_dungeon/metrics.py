@@ -7,13 +7,14 @@ from wealth_metrics.gini_coefficient import gini_coefficient
 from wealth_metrics.nakamoto_coefficient import nakamoto_coefficient
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
-address_grouping = 'single_input'
-redistribution_type = 'weight_based'
-redistribution_amount = 'total_reward'
+address_grouping = 'multi_input'
+redistribution_type = 'no_redistribution'
+redistribution_amount = 'block_reward'
 percentage = 0.5
-extra_fee_amount = 500
-minimum = 10000
-maximum = 100000000
+extra_fee_amount = 0
+extra_fee_percentage = 0.0
+minimum = 1
+maximum = 2100000000000000
 csv_file = f'./result/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{extra_fee_amount}/accounts_{redistribution_amount}.csv'
 
 chunk_size = 1000000
