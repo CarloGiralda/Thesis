@@ -186,59 +186,33 @@ def plot_weight_based_metrics(csv_file, chunk_size=1000000, groups=1000):
 
     plt.show()
 
-    # max/min redistribution
-    max_min = {'Minimum redistribution': min_redistribution_per_block, 
-               'Maximum redistribution': max_redistribution_per_block}
+    # percentile redistribution
+    percentiles = {'Min': min_redistribution_per_block,
+               '25th': perc_25_redistribution_per_block,
+               '50th': perc_50_redistribution_per_block,
+               '75th': perc_75_redistribution_per_block,
+               'Max': max_redistribution_per_block}
     
-    x = np.arange(len(block_heights))
-    x *= 2
-    width = 0.5
+    y = np.arange(len(block_heights))
+    height = 0.175
     multiplier = 0
 
     _, ax = plt.subplots(layout='constrained', figsize=(10, 6))
 
-    for attribute, measurement in max_min.items():
-        offset = width * multiplier
-        rects = ax.bar(x + offset, measurement, width, label=attribute)
-        ax.bar_label(rects, padding=3)
+    for attribute, measurement in percentiles.items():
+        measurement = np.round(measurement, 1)
+        offset = height * multiplier
+        rects = ax.barh(y + offset, measurement, height, label=attribute)
+        ax.bar_label(rects, padding=3, fontsize=8.5)
         multiplier += 1
 
-    ax.set_ylabel('Satoshis')
-    ax.set_title('Max/Min Redistribution by Block Height')
-    ax.set_xticks(x + width, block_heights, rotation=45)
-    ax.legend(loc='upper left', ncols=2)
+    ax.set_xlabel('Satoshis')
+    ax.set_title('Percentiles Redistribution by Block Height')
+    ax.set_yticks(y + height, block_heights)
+    ax.legend(loc='upper right', ncols=1)
 
     min_value = min(min_redistribution_per_block)
     max_value = max(max_redistribution_per_block)
-    ax.set_ylim(min_value, max_value + max_value * 0.3)
-
-    plt.show()
-
-    # percentile redistribution
-    percentile = {'25th percentile': perc_25_redistribution_per_block,
-                  '50th percentile': perc_50_redistribution_per_block,
-                  '75th percentile': perc_75_redistribution_per_block}
-    
-    x = np.arange(len(block_heights))
-    x *= 2
-    width = 0.5
-    multiplier = 0
-
-    _, ax = plt.subplots(layout='constrained', figsize=(10, 6))
-
-    for attribute, measurement in percentile.items():
-        offset = width * multiplier
-        rects = ax.bar(x + offset, measurement, width, label=attribute)
-        ax.bar_label(rects, padding=3)
-        multiplier += 1
-
-    ax.set_ylabel('Satoshis')
-    ax.set_title('Percentile by Block Height')
-    ax.set_xticks(x + width, block_heights, rotation=45)
-    ax.legend(loc='upper left', ncols=3)
-
-    min_value = min(perc_25_redistribution_per_block)
-    max_value = max(perc_75_redistribution_per_block)
-    ax.set_ylim(min_value, max_value + max_value * 0.3)
+    ax.set_xlim(min_value, max_value * 1.5)
 
     plt.show()

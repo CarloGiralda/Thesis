@@ -13,22 +13,29 @@ extra_fee:
   # extra fee amount in percentage
   # fee applied to the outputs of each transaction (except for the coinbase transaction)
   # set it to 0.0 for no extra fee
-  percentage_per_transaction: 0.001
+  percentage_per_transaction: 0.0
 
 redistribution:
   # type of redistribution
   # [no_redistribution, equal, weight_based]
   # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
-  type: 'weight_based'
-  # percentage of amount to be redistributed
-  percentage: 0.5
-  # amount to redistribute
-  # [fees, block_reward, total_reward]
-  amount: 'total_reward'
-  # minimum balance (in SAT) of users to receive redistribution
-  # used to avoid null or very small amounts (probably, unused wallets)
-  minimum: 10000
-  # maximum balance (in SAT) of users to receive redistribution
-  # used to avoid very large amounts (probably, whales)
-  # 2100000000000000 = maximum (21,000,000 BTC, max supply)
-  maximum: 100000000
+  type: 'equal'
+
+  from:
+    # percentage of amount to be redistributed
+    percentage: 0.5
+    # amount to redistribute
+    # [fees, block_reward, total_reward]
+    amount: 'block_reward'
+  
+  to:
+    # minimum balance (in SAT) of users to receive redistribution
+    # used to avoid null or very small amounts (probably, unused wallets)
+    minimum: 1
+    # maximum balance (in SAT) of users to receive redistribution
+    # used to avoid very large amounts (probably, whales)
+    # 2100000000000000 = maximum (21,000,000 BTC, max supply)
+    maximum: 2100000000000000
+    # percentage of eligible users that is going to receive the redistribution
+    # example: 0.8 = only the 80% of poorest users (among the eligible ones) will receive the redistribution
+    percentage: 1.0
