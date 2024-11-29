@@ -349,12 +349,12 @@ def read_files(files, thread_number, dir_sorted_blocks):
 
             reading_pbar.update(1)
 
-def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, redistribution_percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, extra_fee_amount, extra_fee_percentage):
+def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, redistribution_percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage):
     global file_queue
     global lock
     global user_index
 
-    folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{extra_fee_amount}_{extra_fee_percentage}'
+    folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
     dir_results_folder = f'{dir_results}/multi_input/{redistribution_type}/{folder}'
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
@@ -412,7 +412,7 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
 
             futures_readers = [readers.submit(read_files, files, i, dir_sorted_blocks) for i in range(num_readers)]
 
-            futures_processors = [processors.submit(process_blocks, address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, extra_fee_amount, extra_fee_percentage)]
+            futures_processors = [processors.submit(process_blocks, address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)]
 
             # wait for all readers to complete
             wait(futures_readers)

@@ -16,7 +16,7 @@ extra_fee_amount = 0
 extra_fee_percentage = 0.001
 minimum = 10000
 maximum = 100000000
-csv_file = f'./result/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
+csv_file = f'./results_HDD/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
 
 chunk_size = 1000000
 
