@@ -8,6 +8,80 @@ from queue import Queue
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 
+class DoubleDictionaryList:
+    def __init__(self, dictionary={}, list=[]):
+        self.dictionary = dictionary
+        self.reverse_dictionary = {value: key for key, value in self.dictionary.items()}
+
+        # lists have the same length
+        self.list = np.array(list)
+        self.len_list = len(self.list)
+
+        self.invalid_elements = []
+        self.elements_to_add = []
+
+    def remove(self, key):
+        # remove it from both dictionary and reverse dictionary
+        index = self.dictionary.pop(key)
+        self.reverse_dictionary.pop(index)
+
+        self.invalid_elements.append(index)
+
+        if index >= self.len_list:
+            balance = self.elements_to_add[index - self.len_list]
+        else:
+            balance = self.list[index]
+
+        return balance
+
+    def add(self, address, balance):
+
+        if len(self.invalid_elements) > 0:
+            free_index = self.invalid_elements[0]
+
+            if free_index >= self.len_list:
+                self.elements_to_add[free_index - self.len_list] = balance
+            else:
+                self.list[free_index] = balance
+
+            self.dictionary[address] = free_index
+            self.reverse_dictionary[free_index] = address
+            self.invalid_elements.pop(0)
+        else:
+            self.elements_to_add.append(balance)
+
+            index = self.len_list + len(self.elements_to_add) - 1
+            self.dictionary[address] = index
+            self.reverse_dictionary[index] = address
+
+    def update_balance(self, address, balance):
+        index = self.dictionary[address]
+
+        if index >= self.len_list:
+            self.elements_to_add[index - self.len_list] = balance
+        else:
+            self.list[index] = balance
+
+    def perform_addition(self):
+        if len(self.elements_to_add) > 0:
+            # add elements to first list, recompute the length of the first list, clear all elements added from list
+            self.list = np.append(self.list, self.elements_to_add)
+            self.len_list = len(self.list)
+            self.elements_to_add.clear()
+
+    def contains_key(self, key):
+        return key in self.dictionary
+    
+    def get_balance(self, address):
+        index = self.dictionary[address]
+
+        if index >= self.len_list:
+            balance = self.elements_to_add[index - self.len_list]
+        else:
+            balance = self.list[index]
+
+        return balance
+
 def clean_string_for_json_conversion(str):
     return re.sub(r'er\': \[.*?\]', 'er\': \'INVALID\'', str).replace('er\': None', 'er\': \'INVALID\'').replace(' b\'', ' \'').replace('\'', '\"')
 
@@ -215,4 +289,50 @@ def plot_weight_based_metrics(csv_file, chunk_size=1000000, groups=1000):
     max_value = max(max_redistribution_per_block)
     ax.set_xlim(min_value, max_value * 1.5)
 
+    plt.show()
+
+def _process_redistribution_chunk(chunk):
+    local_redistributions = []
+
+    for _, row in chunk.iterrows():
+        redistribution = row['redistribution']
+        local_redistributions.append(redistribution)
+
+    return local_redistributions
+
+def plot_balance_line(csv_file, chunk_size=1000000):
+    redistributions = []
+
+    aggregation_queue = Queue(maxsize=10)
+
+    # Function to aggregate results in a separate thread
+    def aggregate_results():
+        while True:
+            local_redistributions = aggregation_queue.get()
+            if local_redistributions == None:
+                break
+                
+            local_redistributions = local_redistributions.result()
+            redistributions.extend(local_redistributions)
+
+    # Start the aggregation thread
+    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
+        aggregator_future = [aggregator_executor.submit(aggregate_results)]
+
+        with ProcessPoolExecutor() as executor:
+            # Submit initial chunks to reach the max limit in memory
+            for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading CSV in chunks'):
+                aggregation_queue.put(executor.submit(_process_redistribution_chunk, chunk))
+            
+            aggregation_queue.put(None)
+        
+            wait(aggregator_future)
+
+    redistributions.sort(reverse=True)
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(redistributions)
+    plt.ylabel('Redistribution')
+    plt.yscale('log')
+    plt.title('Total Redistribution per user')
     plt.show()

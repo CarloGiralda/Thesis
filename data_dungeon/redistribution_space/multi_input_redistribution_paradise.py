@@ -7,7 +7,7 @@ import numpy_minmax
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from tqdm import tqdm
-from redistribution_space.utils import get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_weight_based_metrics
+from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_weight_based_metrics
 from database.multi_input_accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
 # number of readers for blocks
@@ -19,8 +19,8 @@ lock = 0
 user_index = 0
 
 def perform_input_output(address, payment, input_output, 
-                         address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                         redistribution_minimum, redistribution_maximum, len_eligible_balances, extra_fee_per_output, extra_fee_percentage_per_output):
+                         address_to_user, eligible_accounts, non_eligible_accounts, 
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output):
     global user_index
 
     if address not in address_to_user:
@@ -29,98 +29,66 @@ def perform_input_output(address, payment, input_output,
     # addresses of transactions' outputs are not included in it
     user = address_to_user[address]
 
-    if user in eligible_accounts:
-        index = eligible_accounts[user]
-        if index >= len_eligible_balances:
-            balance = elements_to_add[index - len_eligible_balances]
-        else:
-            balance = eligible_balances[index]
-        # compute the updated balance and assign it to the corresponding address
+    if eligible_accounts.contains_key(user):
+        balance = eligible_accounts.get_balance(user)
+
+        # compute the updated balance
         if input_output == 0:
             updated_balance = balance - payment
         else:
             updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
         
-        # if the address is still eligible, then update the balance, eligible_subsequent_addresses and eligible_accounts_near_non_eligibility (if its balance is higher than the threshold)
+        # if the address is still eligible, then update the balance
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
-            if index >= len_eligible_balances:
-                elements_to_add[index - len_eligible_balances] = updated_balance
-            else:
-                eligible_balances[index] = updated_balance
-        # otherwise, remove the address from eligible_accounts and eligible_accounts_near_non_eligibility (if it was part of it)
+            eligible_accounts.update_balance(updated_balance)
+        # otherwise, remove the address from eligible_accounts
         # add it to non_eligible_accounts
         else:
-            del eligible_accounts[user]
-            invalid_balances.append(index)
+            _ = eligible_accounts.remove(user)
             non_eligible_accounts[user] = updated_balance
 
     elif user in non_eligible_accounts:
         balance = non_eligible_accounts[user]
-        # compute the updated balance and assign it to the corresponding address
+
+        # compute the updated balance
         if input_output == 0:
             updated_balance = balance - payment
         else:
             updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
-        # if the address is eligible now, then add it to eligible_accounts (and to eligible_accounts_near_non_eligibility, if it satisfies the threshold)
-        # update eligible_subsequent_addresses
+
+        # if the address is eligible now, then add it to eligible_accounts
         # remove it from non_eligible_accounts
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
             del non_eligible_accounts[user]
-            # if there is at least one invalid balance, then use it
-            if len(invalid_balances) > 0:
-                free_index = invalid_balances[0]
-                if free_index >= len_eligible_balances:
-                    elements_to_add[free_index - len_eligible_balances] = updated_balance
-                else:
-                    eligible_balances[free_index] = updated_balance
-                eligible_accounts[user] = free_index
-                invalid_balances.pop(0)
-            else:
-                elements_to_add.append(updated_balance)
-                eligible_accounts[user] = len_eligible_balances + len(elements_to_add) - 1
-
+            eligible_accounts.add(user)
         # otherwise, simply update the balance
         else:
             non_eligible_accounts[user] = updated_balance
 
-    # it may happen that some addresses are not in neither eligible_accounts nor non_eligible_accounts 
+    # it may happen that some addresses are not in eligible_accounts nor non_eligible_accounts
     # they have not been used up until now or they have been used but consumed all their balance in the past
     else:
         balance = 0
-        # compute the updated balance and assign it to the corresponding address
+
+        # compute the updated balance
         if input_output == 0:
             updated_balance = balance - payment
         else:
             updated_balance = balance + payment - extra_fee_per_output - extra_fee_percentage_per_output
-        # if the address is eligible now, then add it to eligible_accounts (and to eligible_accounts_near_non_eligibility, if it satisfies the threshold)
-        # update eligible_subsequent_addresses
+        # if the address is eligible now, then add it to eligible_accounts
         # remove it from non_eligible_accounts
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
-            # if there is at least one invalid balance, then use it
-            if len(invalid_balances) > 0:
-                free_index = invalid_balances[0]
-                if free_index >= len_eligible_balances:
-                    elements_to_add[free_index - len_eligible_balances] = updated_balance
-                else:
-                    eligible_balances[free_index] = updated_balance
-                eligible_accounts[user] = free_index
-                invalid_balances.pop(0)
-            else:
-                elements_to_add.append(updated_balance)
-                eligible_accounts[user] = len_eligible_balances + len(elements_to_add) - 1
-
+            eligible_accounts.add(user)
         # otherwise, simply update the balance
         else:
             non_eligible_accounts[user] = updated_balance
 
-    return address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add
+    return address_to_user, eligible_accounts, non_eligible_accounts
 
-def perform_block_transactions(address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
+def perform_block_transactions(address_to_user, eligible_accounts, non_eligible_accounts, 
                                redistribution_minimum, redistribution_maximum, block, extra_fee_amount, extra_fee_percentage):
-    # number of eligible accounts
-    len_eligible_balances = len(eligible_balances)
-    total_extra_fee_percentage = 0
 
+    total_extra_fee_percentage = 0
     # extra fee computed for each output if the fee is a percentage
     extra_fee_percentage_per_output = 0
 
@@ -138,10 +106,10 @@ def perform_block_transactions(address_to_user, eligible_accounts, eligible_bala
             if isinstance(sender, bytes):
                 sender = sender.decode('utf-8')
 
-            address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
+            address_to_user, eligible_accounts, non_eligible_accounts = perform_input_output(
                 sender, payment, 0, 
-                address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                redistribution_minimum, redistribution_maximum, len_eligible_balances, 0, 0)
+                address_to_user, eligible_accounts, non_eligible_accounts, 
+                redistribution_minimum, redistribution_maximum, 0, 0)
             
         num_outputs = len(transaction['Outputs'])
         extra_fee_per_output = distribute(extra_fee_amount, num_outputs)
@@ -159,15 +127,15 @@ def perform_block_transactions(address_to_user, eligible_accounts, eligible_bala
             if isinstance(receiver, bytes):
                 receiver = receiver.decode('utf-8')
 
-            address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
+            address_to_user, eligible_accounts, non_eligible_accounts = perform_input_output(
                 receiver, payment, 1, 
-                address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                redistribution_minimum, redistribution_maximum, len_eligible_balances, extra_fee_per_output[output_index], extra_fee_percentage_per_output)
+                address_to_user, eligible_accounts, non_eligible_accounts, 
+                redistribution_minimum, redistribution_maximum, extra_fee_per_output[output_index], extra_fee_percentage_per_output)
 
-    return address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, total_extra_fee_percentage
+    return address_to_user, eligible_accounts, non_eligible_accounts, total_extra_fee_percentage
             
-def perform_redistribution(redistribution_type, redistribution_amount, redistribution_percentage, redistribution_user_percentage, block, number_of_file, invalid_balances, total_extra_fee,
-                            redistribution, eligible_balances, elements_to_add):
+def perform_redistribution(redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
+                            redistribution, eligible_accounts, non_eligible_accounts):
     # fees payed by users
     fees = block['Fees']
     # total reward = block reward + fees
@@ -186,17 +154,18 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
     max_block_redistribution += total_extra_fee
     
-    if len(elements_to_add) > 0:
-        eligible_balances = np.append(eligible_balances, elements_to_add)
-        elements_to_add.clear()
+    eligible_accounts.perform_addition()
+
+    eligible_balances = eligible_accounts.list
+    invalid_eligible_balances = eligible_accounts.invalid_elements
 
     len_eligible_balances = len(eligible_balances)
 
     # mask array to select only the valid balances (not all of them are valid)
     mask = np.ones(len_eligible_balances, dtype=bool)
-    mask[invalid_balances] = False
+    mask[invalid_eligible_balances] = False
 
-    num_users = len_eligible_balances - len(invalid_balances)
+    num_users = len_eligible_balances - len(invalid_eligible_balances)
     # if the percentage of users is less than 100%, then update the mask to exclude the top (1 - redistribution_user_percentage)%
     if redistribution_user_percentage < 1.0:
         valid_balances = eligible_balances[mask]
@@ -218,13 +187,14 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         actual_block_redistribution = redistribution_per_user * num_users
 
         if redistribution_per_user > 0:
-            eligible_balances[mask] += redistribution_per_user
+            eligible_accounts.list[mask] += redistribution_per_user
 
     elif redistribution_type == 'weight_based':
 
         # compute the inverse of the eligible balances
         # by doing this, the lowest balance will have the highest weight, while the highest balance will have the lowest weight
-        inverse_weights = np.where(mask, 1 / eligible_balances, 0)
+        inverse_weights = np.zeros_like(eligible_balances, dtype=float)
+        np.divide(1, eligible_balances, out=inverse_weights, where=mask)
         # normalize the weights
         total_weight = np.sum(inverse_weights)
         inverse_weights /= total_weight
@@ -254,24 +224,35 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         redistribution[number_of_file] = [actual_block_redistribution, max_redistribution, min_redistribution, 
                                           perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
         
-        eligible_balances += redistributed_amounts
+        eligible_accounts.list += redistributed_amounts
+
+    # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
+    filtered_indices = np.argwhere(eligible_accounts.list[mask] > redistribution_maximum).flatten()
+
+    if len(filtered_indices) > 0:
+        # map to original indices
+        original_indices = np.flatnonzero(mask)[filtered_indices]
+
+        for index in original_indices:
+            address = eligible_accounts.reverse_dictionary[index]
+            balance = eligible_accounts.remove(address)
+            non_eligible_accounts[address] = balance
 
     new_total_reward = total_reward - actual_block_redistribution
     # ratio between previous total reward and redistributed total reward
     ratio = new_total_reward / total_reward
 
-    return redistribution, eligible_balances, elements_to_add, ratio
+    return redistribution, eligible_accounts, non_eligible_accounts, ratio
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
 # the redistribution to other accounts is performed afterwards
-def process_blocks(address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, 
+def process_blocks(address_to_user, eligible_accounts, non_eligible_accounts, redistribution, 
                    len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage):
     global file_queue
     number_of_file = 0
 
     with tqdm(total=len_files, desc=f'Processing blocks') as pbar:
-        elements_to_add = []
 
         while True:
             item = file_queue.get()
@@ -279,8 +260,8 @@ def process_blocks(address_to_user, eligible_accounts, eligible_balances, invali
                 break  # End of files
             _, block = item
 
-            address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, total_extra_fee_percentage = perform_block_transactions(
-                address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
+            address_to_user, eligible_accounts, non_eligible_accounts, total_extra_fee_percentage = perform_block_transactions(
+                address_to_user, eligible_accounts, non_eligible_accounts, 
                 redistribution_minimum, redistribution_maximum, block, extra_fee_amount, extra_fee_percentage)
 
             # total extra fee per block is equal to 
@@ -288,45 +269,35 @@ def process_blocks(address_to_user, eligible_accounts, eligible_balances, invali
             # the amount sent multiplied by extra_fee_percentage
             total_extra_fee = extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage
 
-            redistribution, eligible_balances, elements_to_add, ratio = perform_redistribution(
-                redistribution_type, redistribution_amount, redistribution_percentage, redistribution_user_percentage, block, number_of_file, invalid_balances, total_extra_fee,
-                redistribution, eligible_balances, elements_to_add)
+            redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+                redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
+                redistribution, eligible_accounts, non_eligible_accounts)
 
-            # to not waste the SATs of the approximation (math.floor), their number is kept in this variable
-            excessive = 0.0
             coinbase_transaction = block['Transactions'][0]
             for i in range(len(coinbase_transaction['Outputs'])):
                 output = coinbase_transaction['Outputs'][i]
                 receiver = output['Receiver']
                 exact_payment = output['Value'] * ratio
                 payment = int(math.floor(exact_payment))
-                excessive += exact_payment - payment
 
                 if isinstance(receiver, list):
                     continue
                 if isinstance(receiver, bytes):
                     receiver = receiver.decode('utf-8')
 
-                # the SATs approximated by math.floor are added to the last output
-                if i == len(coinbase_transaction['Outputs']) - 1:
-                    payment += int(excessive)
-
-                address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add = perform_input_output(
+                address_to_user, eligible_accounts, non_eligible_accounts = perform_input_output(
                     receiver, payment, 1, 
-                    address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, elements_to_add, 
-                    redistribution_minimum, redistribution_maximum, len(eligible_balances), 0, 0)
+                    address_to_user, eligible_accounts, non_eligible_accounts, 
+                    redistribution_minimum, redistribution_maximum, 0, 0)
 
             number_of_file += 1
             pbar.update(1)
 
             file_queue.task_done()
 
-    if len(elements_to_add) > 0:
-        print(elements_to_add)
-        eligible_balances = np.append(eligible_balances, elements_to_add)
-        elements_to_add.clear()
+    eligible_accounts.perform_addition()
 
-    return eligible_accounts, eligible_balances, non_eligible_accounts, redistribution
+    return eligible_accounts, non_eligible_accounts, redistribution
 
 def read_files(files, thread_number, dir_sorted_blocks):
     global file_queue
@@ -355,7 +326,7 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
     global user_index
 
     folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-    dir_results_folder = f'{dir_results}/multi_input/{redistribution_type}/{folder}'
+    dir_results_folder = f'{dir_results}/normal/multi_input/{redistribution_type}/{folder}'
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 
@@ -374,22 +345,26 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
 
         len_files = len(files)
 
-        # in this dictionary are saved all the addresses and their corresponding user identifier (both eligible and non-eligible)
-        address_to_user = {}
+        def retrieve_eligible_accounts_object(conn, redistribution_minimum, redistribution_maximum):
+            print('Retrieving eligible accounts from database...')
+            # in this dictionary are saved all the addresses and their corresponding user identifier (both eligible and non-eligible)
+            address_to_user = {}
 
-        print('Retrieving eligible accounts from database...')
-        # results are in a specific format ---> address, user, balance
-        eligible_accounts = {}
-        eligible_balances = []
-        invalid_balances = []
+            eligible_addresses = {}
+            eligible_balances = []
 
-        for address, user, balance in retrieve_eligible_accounts(conn, redistribution_minimum, redistribution_maximum):
-            address_to_user[address] = user
-            if user not in eligible_accounts:
-                eligible_balances.append(balance)
-                eligible_accounts[user] = len(eligible_balances) - 1
-        # transform the eligible_balances into an array for faster computations
-        eligible_balances = np.array(eligible_balances)
+            for address, user, balance in retrieve_eligible_accounts(conn, redistribution_minimum, redistribution_maximum):
+                address_to_user[address] = user
+                if user not in eligible_addresses:
+                    eligible_balances.append(balance)
+                    eligible_addresses[user] = len(eligible_balances) - 1
+            # transform the eligible_balances into an array for faster computations
+            eligible_balances = np.array(eligible_balances)
+
+            eligible_accounts = DoubleDictionaryList(eligible_addresses, eligible_balances)
+            return eligible_accounts, address_to_user
+        
+        eligible_accounts, address_to_user = retrieve_eligible_accounts_object(conn, redistribution_minimum, redistribution_maximum)
 
         print('Retrieving non eligible accounts from database...')
         non_eligible_accounts = {}
@@ -412,7 +387,7 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
 
             futures_readers = [readers.submit(read_files, files, i, dir_sorted_blocks) for i in range(num_readers)]
 
-            futures_processors = [processors.submit(process_blocks, address_to_user, eligible_accounts, eligible_balances, invalid_balances, non_eligible_accounts, redistribution, len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)]
+            futures_processors = [processors.submit(process_blocks, address_to_user, eligible_accounts, non_eligible_accounts, redistribution, len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)]
 
             # wait for all readers to complete
             wait(futures_readers)
@@ -421,7 +396,7 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
 
             # wait for the processor to complete
             for future in as_completed(futures_processors):
-                eligible_accounts, eligible_balances, non_eligible_accounts, redistribution = future.result()
+                eligible_accounts, non_eligible_accounts, redistribution = future.result()
 
         with open(path_redistribution, 'w+') as file:
             csv_out = csv.writer(file)
@@ -437,9 +412,12 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
             csv_out = csv.writer(file)
             csv_out.writerow(['user','balance'])
 
+            eligible_addresses = eligible_accounts.dictionary
+            eligible_balances = eligible_accounts.list
+
             # save the accounts which have already received redistribution
-            with tqdm(total=len(eligible_accounts), desc=f'Writing eligible accounts') as pbar:
-                for user, index in eligible_accounts.items():
+            with tqdm(total=len(eligible_addresses), desc=f'Writing eligible accounts') as pbar:
+                for user, index in eligible_addresses.items():
                     balance = eligible_balances[index]
                     csv_out.writerow((user, balance))
 
@@ -451,11 +429,6 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
                     csv_out.writerow((user, balance))
 
                     pbar.update(1)
-    
-        eligible_accounts = None
-        eligible_balances = None
-        invalid_balances = None
-        non_eligible_accounts = None
 
     plot_balance_histogram(path_accounts)
     if redistribution_type == 'equal':

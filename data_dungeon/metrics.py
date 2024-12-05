@@ -8,14 +8,14 @@ from wealth_metrics.nakamoto_coefficient import nakamoto_coefficient
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
 address_grouping = 'multi_input'
-redistribution_type = 'weight_based'
-redistribution_amount = 'total_reward'
+redistribution_type = 'no_redistribution'
+redistribution_amount = 'fees'
 percentage = 0.5
 user_percentage = 1.0
 extra_fee_amount = 0
-extra_fee_percentage = 0.001
-minimum = 10000
-maximum = 100000000
+extra_fee_percentage = 0.0
+minimum = 1
+maximum = 1
 csv_file = f'./results_HDD/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
 
 chunk_size = 1000000
