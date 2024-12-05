@@ -40,7 +40,7 @@ def perform_input_output(address, payment, input_output,
         
         # if the address is still eligible, then update the balance
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
-            eligible_accounts.update_balance(updated_balance)
+            eligible_accounts.update_balance(address, updated_balance)
         # otherwise, remove the address from eligible_accounts
         # add it to non_eligible_accounts
         else:
