@@ -3,22 +3,25 @@ import numpy as np
 from tqdm import tqdm
 from queue import Queue
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
-from wealth_metrics.gini_coefficient import gini_coefficient
+from wealth_metrics.gini_coefficient import gini, lorenz_curve
 from wealth_metrics.nakamoto_coefficient import nakamoto_coefficient
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
-address_grouping = 'multi_input'
-redistribution_type = 'no_redistribution'
-redistribution_amount = 'fees'
+metric_type = 'only_redistribution'
+address_grouping = 'single_input'
+redistribution_type = 'weight_based'
+redistribution_amount = 'block_reward'
 percentage = 0.5
 user_percentage = 1.0
 extra_fee_amount = 0
-extra_fee_percentage = 0.0
-minimum = 1
-maximum = 1
-csv_file = f'./results_HDD/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
+extra_fee_percentage = 0.001
+minimum = 10000
+maximum = 100000000
+csv_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
 
 chunk_size = 1000000
+
+lorenz_curve_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/lorenz_curve_{redistribution_amount}.png'
 
 # Exchanges, ETF, Custodial Companies addresses in the top 500 holders
 known_wallets = set(['34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo', 'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97', 'bc1ql49ydapnjafl5t2cp9zqpjwe6pdgmxy98859v2', 
@@ -46,18 +49,24 @@ known_wallets = set(['34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo', 'bc1qgdjqv0av3q56jvd8
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
 def _process_balance_chunk(chunk, known_users):
-    if address_grouping == 'single_input':
-        filtered_chunk = chunk[
-            (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 10000)
-        ]
-    elif address_grouping == 'multi_input':
-        filtered_chunk = chunk[
-            (~chunk['user'].isin(known_users)) & (chunk['balance'] > 10000)
-        ]
+    if metric_type == 'normal':
+        if address_grouping == 'single_input':
+            filtered_chunk = chunk[
+                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 10000)
+            ]
+        elif address_grouping == 'multi_input':
+            filtered_chunk = chunk[
+                (~chunk['user'].isin(known_users)) & (chunk['balance'] > 10000)
+            ]
 
-    # Extract balances and calculate the total sum in a vectorized manner
-    local_balances = filtered_chunk['balance'].tolist()
-    local_total_sum = filtered_chunk['balance'].sum()
+        # Extract balances and calculate the total sum in a vectorized manner
+        local_balances = filtered_chunk['balance'].tolist()
+        local_total_sum = filtered_chunk['balance'].sum()
+
+    else:
+        # Extract balances and calculate the total sum in a vectorized manner
+        local_balances = chunk['redistribution'].tolist()
+        local_total_sum = chunk['redistribution'].sum()
 
     return local_balances, local_total_sum
 
@@ -102,14 +111,16 @@ def main():
             
             wait(aggregator_future)
 
-    balances_array = np.array(balances)
+    balances_array = np.array(balances, dtype=np.float64)
     balances_array_sorted = np.sort(balances_array)
 
-    gini = gini_coefficient(balances_array_sorted, total_sum)
+    gini_coefficient = gini(balances_array_sorted, total_sum)
     nakamoto = nakamoto_coefficient(balances_array_sorted, total_sum)
 
-    print(f'Gini coefficient: {gini}')
+    print(f'Gini coefficient: {gini_coefficient}')
     print(f'Nakamoto coefficient: {nakamoto}')
+
+    lorenz_curve(balances_array_sorted, total_sum, lorenz_curve_file)
 
 if __name__ == '__main__':
     main()

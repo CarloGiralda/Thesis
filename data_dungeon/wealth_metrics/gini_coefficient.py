@@ -1,44 +1,26 @@
-import math
+import numpy as np
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-def gini_coefficient(balances_array_sorted, total_sum):
-    num_balances = len(balances_array_sorted)
-    balances_in_decile = math.ceil(num_balances / 10)
+def lorenz_curve(balances_array_sorted, total_sum, lorenz_curve_file):
+    X_lorenz = balances_array_sorted.cumsum() / total_sum
+    X_lorenz = np.insert(X_lorenz, 0, 0) 
+    X_lorenz[0], X_lorenz[-1]
 
-    wealth_distribution_decile = []
-    
-    sum = 0
-    for index, balance in tqdm(enumerate(balances_array_sorted), desc='Wealth distribution computation'):
-        sum += balance
+    _, ax = plt.subplots(layout='constrained', figsize = (10, 6))
+    # plot Lorenz curve
+    ax.plot(np.arange(X_lorenz.size)/(X_lorenz.size-1), X_lorenz, color='purple', label='Lorenz curve')
+    # plot line of equality
+    ax.plot([0,1], [0,1], color='k', label='Equality line')
+    ax.legend(loc='upper left', ncols=1)
+    ax.set_xlabel('Percentage of Population')
+    ax.set_ylabel('Percentage of Wealth')
+    plt.savefig(lorenz_curve_file)
+    plt.show()
 
-        # check if the next number is the one that starts the new decile or if this is the last element of the array
-        # this is done because the division for deciles is not perfect, so approximation must be taken into account
-        if (index + 1) % balances_in_decile == 0 or index == num_balances - 1:
-            wealth_decile = sum / total_sum
-            wealth_distribution_decile.append(wealth_decile)
-
-    print(f'Deciles: {wealth_distribution_decile}')
-
-    perfect_lorenz_curve_area = 0.5
-    # the area under this curve is computed by summing the rectangle and the triangle under each decile
-    # the first decile has only a triangle
-    actual_lorenz_curve_area = 0
-
-    for i in tqdm(range(len(wealth_distribution_decile)), desc='Gini computation'):
-        # decile division makes the base always equal to 0.1
-        base = 0.1
-        previous_height = 0
-        if i > 0:
-            previous_height = wealth_distribution_decile[i - 1]
-        current_height = wealth_distribution_decile[i]
-
-        rectangle_area = base * previous_height
-        triangle_area = base * (current_height - previous_height) / 2
-        area = rectangle_area + triangle_area
-
-        actual_lorenz_curve_area += area
-
-    area_between_lorenz_curves = perfect_lorenz_curve_area - actual_lorenz_curve_area
-    gini_value = area_between_lorenz_curves / perfect_lorenz_curve_area
-
-    return gini_value
+def gini(balances_array_sorted, total_sum):
+    n = balances_array_sorted.size
+    coef_ = 2. / n
+    const_ = (n + 1.) / n
+    weighted_sum = sum([(i + 1) * yi for i, yi in tqdm(enumerate(balances_array_sorted))])
+    return coef_ * weighted_sum / (total_sum) - const_

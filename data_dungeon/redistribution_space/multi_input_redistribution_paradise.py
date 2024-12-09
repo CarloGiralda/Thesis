@@ -60,7 +60,7 @@ def perform_input_output(address, payment, input_output,
         # remove it from non_eligible_accounts
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
             del non_eligible_accounts[user]
-            eligible_accounts.add(user)
+            eligible_accounts.add(user, updated_balance)
         # otherwise, simply update the balance
         else:
             non_eligible_accounts[user] = updated_balance
@@ -78,7 +78,7 @@ def perform_input_output(address, payment, input_output,
         # if the address is eligible now, then add it to eligible_accounts
         # remove it from non_eligible_accounts
         if redistribution_minimum <= updated_balance <= redistribution_maximum:
-            eligible_accounts.add(user)
+            eligible_accounts.add(user, updated_balance)
         # otherwise, simply update the balance
         else:
             non_eligible_accounts[user] = updated_balance
@@ -374,7 +374,7 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
                 non_eligible_accounts[user] = balance
 
         # set the user_index to the identifier of the user with the highest number of eligible_balances + 1
-        user_index = max(eligible_accounts.keys()) + 1
+        user_index = max(eligible_accounts.dictionary.keys()) + 1
 
         # pre-allocate a fixed size redistribution list
         redistribution = [0] * len_files

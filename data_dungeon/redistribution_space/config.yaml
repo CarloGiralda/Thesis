@@ -3,7 +3,7 @@ addresses:
   # [single_input, multi_input]
   # single_input means that each address is treated as a separate account
   # multi_input is based on multi-input heuristics where all addresses that belong to the set of inputs of the same transaction are classified as a single entity
-  grouping: 'single_input'
+  grouping: 'multi_input'
 
 extra_fee:
   # extra fee amount in SATs

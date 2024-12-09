@@ -19,14 +19,14 @@ redistribution:
   # type of redistribution
   # [no_redistribution, equal, weight_based]
   # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
-  type: 'weight_based'
+  type: 'equal'
 
   from:
     # percentage of amount to be redistributed
     percentage: 0.5
     # amount to redistribute
     # [fees, block_reward, total_reward]
-    amount: 'fees'
+    amount: 'total_reward'
   
   to:
     # minimum balance (in SAT) of users to receive redistribution
