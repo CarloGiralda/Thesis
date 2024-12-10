@@ -334,12 +334,12 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
     global file_queue
     global lock
 
-    folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
+    folder = f'{redistribution_amount}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
     dir_results_folder = f'{dir_results}/only_redistribution/single_input/{redistribution_type}/{folder}'
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 
-    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_amount}.csv')
+    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_percentage}.csv')
 
     if not os.path.exists(path_accounts):
 
@@ -434,4 +434,4 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
 
                     pbar.update(1)
 
-    plot_balance_line(path_accounts)
+    # plot_balance_line(path_accounts)

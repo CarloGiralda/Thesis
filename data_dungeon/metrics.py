@@ -3,8 +3,9 @@ import numpy as np
 from tqdm import tqdm
 from queue import Queue
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
-from wealth_metrics.gini_coefficient import gini, lorenz_curve
-from wealth_metrics.nakamoto_coefficient import nakamoto_coefficient
+from wealth_metrics.gini_coefficient import gini
+from wealth_metrics.nakamoto_coefficient import nakamoto
+from wealth_metrics.charts import lorenz_curve
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
 metric_type = 'normal'
@@ -115,10 +116,10 @@ def main():
     balances_array_sorted = np.sort(balances_array)
 
     gini_coefficient = gini(balances_array_sorted, total_sum)
-    nakamoto = nakamoto_coefficient(balances_array_sorted, total_sum)
+    nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
 
     print(f'Gini coefficient: {gini_coefficient}')
-    print(f'Nakamoto coefficient: {nakamoto}')
+    print(f'Nakamoto coefficient: {nakamoto_coefficient}')
 
     lorenz_curve(balances_array_sorted, total_sum, lorenz_curve_file)
 
