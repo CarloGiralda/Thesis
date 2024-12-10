@@ -6,7 +6,8 @@ import math
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from tqdm import tqdm
-from redistribution_space.utils import get_block, extract_height_from_name, distribute, plot_balance_line
+from only_redistribution_space.utils import DictionaryDoubleList, DoubleDictionaryDoubleList, plot_balance_line
+from redistribution_space.utils import get_block, extract_height_from_name, distribute
 from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
 # number of readers for blocks
@@ -15,213 +16,11 @@ num_readers = 2
 file_queue = queue.Queue(maxsize=10)
 lock = 0
 
-class DictionaryDoubleList:
-    def __init__(self, dictionary={}, first_list=[], second_list=[]):
-        self.dictionary = dictionary
-
-        # lists have the same length
-        self.first_list = np.array(first_list)
-        self.len_first_list = len(self.first_list)
-        self.second_list = np.array(second_list)
-        self.len_second_list = len(self.second_list)
-
-        self.invalid_elements = []
-        self.elements_to_add_first_list = []
-        self.elements_to_add_second_list = []
-
-    def remove(self, key):
-        index = self.dictionary.pop(key)
-        self.invalid_elements.append(index)
-
-        if index >= self.len_first_list:
-            balance = self.elements_to_add_first_list[index - self.len_first_list]
-            redistribution = self.elements_to_add_second_list[index - self.len_second_list]
-        else:
-            balance = self.first_list[index]
-            redistribution = self.second_list[index]
-
-        return balance, redistribution
-
-    def add(self, address, balance, redistribution):
-
-        if len(self.invalid_elements) > 0:
-            free_index = self.invalid_elements[0]
-
-            if free_index >= self.len_first_list:
-                self.elements_to_add_first_list[free_index - self.len_first_list] = balance
-                self.elements_to_add_second_list[free_index - self.len_second_list] = redistribution
-            else:
-                self.first_list[free_index] = balance
-                self.second_list[free_index] = redistribution
-
-            self.dictionary[address] = free_index
-            self.invalid_elements.pop(0)
-        else:
-            self.elements_to_add_first_list.append(balance)
-            self.elements_to_add_second_list.append(redistribution)
-            self.dictionary[address] = self.len_first_list + len(self.elements_to_add_first_list) - 1
-
-    def update_balance(self, address, balance):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            self.elements_to_add_first_list[index - self.len_first_list] = balance
-        else:
-            self.first_list[index] = balance
-
-    def update_redistribution(self, address, redistribution):
-        index = self.dictionary[address]
-        
-        if index >= self.len_second_list:
-            self.elements_to_add_second_list[index - self.len_second_list] = redistribution
-        else:
-            self.second_list[index] = redistribution
-
-    def perform_addition(self):
-        if len(self.elements_to_add_first_list) > 0:
-            # add elements to first list, recompute the length of the first list, clear all elements added from list
-            self.first_list = np.append(self.first_list, self.elements_to_add_first_list)
-            self.len_first_list = len(self.first_list)
-            self.elements_to_add_first_list.clear()
-            # add elements to second list, recompute the length of the second list, clear all elements added from list
-            self.second_list = np.append(self.second_list, self.elements_to_add_second_list)
-            self.len_second_list = len(self.second_list)
-            self.elements_to_add_second_list.clear()
-
-    def contains_address(self, address):
-        return address in self.dictionary
-    
-    def get_balance(self, address):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            balance = self.elements_to_add_first_list[index - self.len_first_list]
-        else:
-            balance = self.first_list[index]
-
-        return balance
-    
-    def get_redistribution(self, address):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            redistribution = self.elements_to_add_second_list[index - self.len_first_list]
-        else:
-            redistribution = self.second_list[index]
-
-        return redistribution
-    
-class DoubleDictionaryDoubleList:
-    def __init__(self, dictionary={}, first_list=[], second_list=[]):
-        self.dictionary = dictionary
-        self.reverse_dictionary = {value: key for key, value in self.dictionary.items()}
-
-        # lists have the same length
-        self.first_list = np.array(first_list)
-        self.len_first_list = len(self.first_list)
-        self.second_list = np.array(second_list)
-        self.len_second_list = len(self.second_list)
-
-        self.invalid_elements = []
-        self.elements_to_add_first_list = []
-        self.elements_to_add_second_list = []
-
-    def remove(self, key):
-        # remove it from both dictionary and reverse dictionary
-        index = self.dictionary.pop(key)
-        self.reverse_dictionary.pop(index)
-
-        self.invalid_elements.append(index)
-
-        if index >= self.len_first_list:
-            balance = self.elements_to_add_first_list[index - self.len_first_list]
-            redistribution = self.elements_to_add_second_list[index - self.len_second_list]
-        else:
-            balance = self.first_list[index]
-            redistribution = self.second_list[index]
-
-        return balance, redistribution
-
-    def add(self, address, balance, redistribution):
-
-        if len(self.invalid_elements) > 0:
-            free_index = self.invalid_elements[0]
-
-            if free_index >= self.len_first_list:
-                self.elements_to_add_first_list[free_index - self.len_first_list] = balance
-                self.elements_to_add_second_list[free_index - self.len_second_list] = redistribution
-            else:
-                self.first_list[free_index] = balance
-                self.second_list[free_index] = redistribution
-
-            self.dictionary[address] = free_index
-            self.reverse_dictionary[free_index] = address
-            self.invalid_elements.pop(0)
-        else:
-            self.elements_to_add_first_list.append(balance)
-            self.elements_to_add_second_list.append(redistribution)
-
-            index = self.len_first_list + len(self.elements_to_add_first_list) - 1
-            self.dictionary[address] = index
-            self.reverse_dictionary[index] = address
-
-    def update_balance(self, address, balance):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            self.elements_to_add_first_list[index - self.len_first_list] = balance
-        else:
-            self.first_list[index] = balance
-
-    def update_redistribution(self, address, redistribution):
-        index = self.dictionary[address]
-        
-        if index >= self.len_second_list:
-            self.elements_to_add_second_list[index - self.len_second_list] = redistribution
-        else:
-            self.second_list[index] = redistribution
-
-    def perform_addition(self):
-        if len(self.elements_to_add_first_list) > 0:
-            # add elements to first list, recompute the length of the first list, clear all elements added from list
-            self.first_list = np.append(self.first_list, self.elements_to_add_first_list)
-            self.len_first_list = len(self.first_list)
-            self.elements_to_add_first_list.clear()
-            # add elements to second list, recompute the length of the second list, clear all elements added from list
-            self.second_list = np.append(self.second_list, self.elements_to_add_second_list)
-            self.len_second_list = len(self.second_list)
-            self.elements_to_add_second_list.clear()
-
-    def contains_address(self, address):
-        return address in self.dictionary
-    
-    def get_balance(self, address):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            balance = self.elements_to_add_first_list[index - self.len_first_list]
-        else:
-            balance = self.first_list[index]
-
-        return balance
-    
-    def get_redistribution(self, address):
-        index = self.dictionary[address]
-
-        if index >= self.len_first_list:
-            redistribution = self.elements_to_add_second_list[index - self.len_first_list]
-        else:
-            redistribution = self.second_list[index]
-
-        return redistribution
-
-
-
 def perform_input_output(address, payment, input_output, 
                          eligible_accounts, non_eligible_accounts,
                          redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output):
 
-    if eligible_accounts.contains_address(address):
+    if eligible_accounts.contains_key(address):
         balance = eligible_accounts.get_balance(address)
 
         # compute the updated balance and assign it to the corresponding address
@@ -239,7 +38,7 @@ def perform_input_output(address, payment, input_output,
             # redistribution is assigned to non_eligible_accounts
             non_eligible_accounts.add(address, updated_balance, redistribution)
 
-    elif non_eligible_accounts.contains_address(address):
+    elif non_eligible_accounts.contains_key(address):
         balance = non_eligible_accounts.get_balance(address)
 
         # compute the updated balance and assign it to the corresponding address

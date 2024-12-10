@@ -7,12 +7,12 @@ from wealth_metrics.gini_coefficient import gini, lorenz_curve
 from wealth_metrics.nakamoto_coefficient import nakamoto_coefficient
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
-metric_type = 'only_redistribution'
+metric_type = 'normal'
 address_grouping = 'single_input'
 redistribution_type = 'weight_based'
-redistribution_amount = 'block_reward'
+redistribution_amount = 'total_reward'
 percentage = 0.5
-user_percentage = 1.0
+user_percentage = 0.75
 extra_fee_amount = 0
 extra_fee_percentage = 0.001
 minimum = 10000

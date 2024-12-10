@@ -1,6 +1,5 @@
 import json
 import re
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -289,50 +288,4 @@ def plot_weight_based_metrics(csv_file, chunk_size=1000000, groups=1000):
     max_value = max(max_redistribution_per_block)
     ax.set_xlim(min_value, max_value * 1.5)
 
-    plt.show()
-
-def _process_redistribution_chunk(chunk):
-    local_redistributions = []
-
-    for _, row in chunk.iterrows():
-        redistribution = row['redistribution']
-        local_redistributions.append(redistribution)
-
-    return local_redistributions
-
-def plot_balance_line(csv_file, chunk_size=1000000):
-    redistributions = []
-
-    aggregation_queue = Queue(maxsize=10)
-
-    # Function to aggregate results in a separate thread
-    def aggregate_results():
-        while True:
-            local_redistributions = aggregation_queue.get()
-            if local_redistributions == None:
-                break
-                
-            local_redistributions = local_redistributions.result()
-            redistributions.extend(local_redistributions)
-
-    # Start the aggregation thread
-    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
-        aggregator_future = [aggregator_executor.submit(aggregate_results)]
-
-        with ProcessPoolExecutor() as executor:
-            # Submit initial chunks to reach the max limit in memory
-            for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading CSV in chunks'):
-                aggregation_queue.put(executor.submit(_process_redistribution_chunk, chunk))
-            
-            aggregation_queue.put(None)
-        
-            wait(aggregator_future)
-
-    redistributions.sort(reverse=True)
-    
-    plt.figure(figsize=(10, 6))
-    plt.plot(redistributions)
-    plt.ylabel('Redistribution')
-    plt.yscale('log')
-    plt.title('Total Redistribution per user')
     plt.show()

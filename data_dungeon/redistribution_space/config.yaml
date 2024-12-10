@@ -19,14 +19,14 @@ redistribution:
   # type of redistribution
   # [no_redistribution, equal, weight_based]
   # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
-  type: 'no_redistribution'
+  type: 'equal'
 
   from:
     # percentage of amount to be redistributed
     percentage: 0.5
     # amount to redistribute
     # [fees, block_reward, total_reward]
-    amount: 'fees'
+    amount: 'block_reward'
   
   to:
     # minimum balance (in SAT) of users to receive redistribution
@@ -35,7 +35,7 @@ redistribution:
     # maximum balance (in SAT) of users to receive redistribution
     # used to avoid very large amounts (probably, whales)
     # 2100000000000000 = maximum (21,000,000 BTC, max supply)
-    maximum: 1
+    maximum: 2100000000000000
     # percentage of eligible users that is going to receive the redistribution
     # example: 0.8 = only the 80% of poorest users (among the eligible ones) will receive the redistribution
     percentage: 1.0
