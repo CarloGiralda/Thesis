@@ -74,6 +74,8 @@ def main():
     for i in range(0, 11, 2):
         percentage = i / 10
 
+        print('Percentage: ', percentage)
+
         dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
         csv_file = f'{dir_files}/accounts_{percentage}.csv'
         gini_file = f'{dir_files}/gini_coefficient.png'
@@ -85,7 +87,6 @@ def main():
             multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         
         balances_array_sorted, total_sum = read_csv_file(csv_file)
-        print(max(balances_array_sorted))
         gini_coefficient = gini(balances_array_sorted, total_sum)
         ginis[percentage] = gini_coefficient
         nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
