@@ -71,7 +71,7 @@ def main():
     ginis = {}
     nakamotos = {}
 
-    for i in range(0, 11, 2):
+    for i in range(1, 11, 2):
         percentage = i / 10
 
         print('Percentage: ', percentage)
