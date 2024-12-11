@@ -1,10 +1,6 @@
 venv/
 result/
-input_data/
 results_HDD/
-redistribution_space_c++/
-.gitmodules
-.vscode/
 tests.py
 compare_files.py
 __pycache__/

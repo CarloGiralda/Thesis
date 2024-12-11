@@ -202,8 +202,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         actual_block_redistribution = max_block_redistribution
         
-        eligible_accounts.first_list += redistributed_amounts
-        eligible_accounts.second_list += redistributed_amounts
+        eligible_accounts.first_list[mask] += redistributed_amounts
+        eligible_accounts.second_list[mask] += redistributed_amounts
 
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
     filtered_indices = np.argwhere(eligible_accounts.first_list[mask] > redistribution_maximum).flatten()
@@ -290,12 +290,12 @@ def process_blocks(eligible_accounts, non_eligible_accounts,
                         # include everything
                         redistribution = payment
                         
-                    if eligible_accounts.contains_address(receiver):
+                    if eligible_accounts.contains_key(receiver):
                         previous_redistribution = eligible_accounts.get_redistribution(receiver)
                         total_redistribution = previous_redistribution + redistribution
                         eligible_accounts.update_redistribution(receiver, total_redistribution)
 
-                    elif non_eligible_accounts.contains_address(receiver):
+                    elif non_eligible_accounts.contains_key(receiver):
                         previous_redistribution = non_eligible_accounts.get_redistribution(receiver)
                         total_redistribution = previous_redistribution + redistribution
                         non_eligible_accounts.update_redistribution(receiver, total_redistribution)
@@ -334,8 +334,8 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
     global file_queue
     global lock
 
-    folder = f'{redistribution_amount}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-    dir_results_folder = f'{dir_results}/only_redistribution/single_input/{redistribution_type}/{folder}'
+    folder = f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
+    dir_results_folder = os.path.join(dir_results, 'only_redistribution', 'single_input', redistribution_type, redistribution_amount, folder)
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 

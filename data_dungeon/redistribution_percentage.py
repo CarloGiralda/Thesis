@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from queue import Queue
@@ -6,8 +7,8 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from wealth_metrics.gini_coefficient import gini
 from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import plot_gini_coefficient, plot_nakamoto_coefficient
-from only_redistribution_space.only_redistribution_paradise import only_redistribution_paradise
-from only_redistribution_space.multi_input_only_redistribution_paradise import multi_input_only_redistribution_paradise
+from redistribution_space.redistribution_paradise import redistribution_paradise
+from redistribution_space.multi_input_redistribution_paradise import multi_input_redistribution_paradise
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
 dir_results = './results_HDD/' # Directory where to store the results
@@ -57,7 +58,7 @@ def read_csv_file(csv_file, chunk_size=1000000):
     return balances_array_sorted, total_sum
 
 def main():
-    metric_type = 'only_redistribution'
+    metric_type = 'normal'
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
@@ -73,21 +74,21 @@ def main():
     for i in range(0, 11):
         percentage = i / 10
 
-        dir_results = f'./results_HDD/{metric_type}/{addresses}/{redistribution_type}/{redistribution_amount}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-        csv_file = f'{dir_results}/accounts_{percentage}.csv'
-        gini_file = f'{dir_results}/gini_coefficient.png'
-        nakamoto_file = f'{dir_results}/nakamoto_coefficient.png'
+        dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
+        csv_file = f'{dir_files}/accounts_{percentage}.csv'
+        gini_file = f'{dir_files}/gini_coefficient.png'
+        nakamoto_file = f'{dir_files}/nakamoto_coefficient.png'
 
         if addresses == 'single_input':
-            only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
+            redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         elif addresses == 'multi_input':
-            multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
+            multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         
         balances_array_sorted, total_sum = read_csv_file(csv_file)
         gini_coefficient = gini(balances_array_sorted, total_sum)
-        ginis[i] = gini_coefficient
+        ginis[percentage] = gini_coefficient
         nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
-        nakamotos[i] = nakamoto_coefficient
+        nakamotos[percentage] = nakamoto_coefficient
     
     plot_gini_coefficient(ginis, gini_file)
     plot_nakamoto_coefficient(nakamotos, nakamoto_file)

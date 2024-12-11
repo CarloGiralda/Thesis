@@ -215,7 +215,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         redistribution[number_of_file] = [actual_block_redistribution, max_redistribution, min_redistribution, 
                                           perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
         
-        eligible_accounts.list += redistributed_amounts
+        eligible_accounts.list[mask] += redistributed_amounts
 
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
     filtered_indices = np.argwhere(eligible_accounts.list[mask] > redistribution_maximum).flatten()
@@ -316,13 +316,13 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
     global file_queue
     global lock
 
-    folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-    dir_results_folder = f'{dir_results}/normal/single_input/{redistribution_type}/{folder}'
+    folder = f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
+    dir_results_folder = os.path.join(dir_results, 'normal', 'single_input', redistribution_type, redistribution_amount, folder)
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 
-    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_amount}.csv')
-    path_redistribution = os.path.join(dir_results_folder, f'redistribution_{redistribution_amount}.csv')
+    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_percentage}.csv')
+    path_redistribution = os.path.join(dir_results_folder, f'redistribution_{redistribution_percentage}.csv')
 
     if not os.path.exists(path_accounts) or not os.path.exists(path_redistribution):
 
@@ -390,7 +390,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
         with open(path_accounts, 'w+') as file:
             csv_out = csv.writer(file)
-            csv_out.writerow(['address','balance'])
+            csv_out.writerow(['balance'])
 
             eligible_addresses = eligible_accounts.dictionary
             eligible_balances = eligible_accounts.list
@@ -399,14 +399,14 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
             with tqdm(total=len(eligible_addresses), desc=f'Writing eligible accounts') as pbar:
                 for address, index in eligible_addresses.items():
                     balance = eligible_balances[index]
-                    csv_out.writerow((address, balance))
+                    csv_out.writerow([balance])
 
                     pbar.update(1)
 
             # save accounts that are not eligible
             with tqdm(total=len(non_eligible_accounts), desc=f'Writing non-eligible accounts') as pbar:
                 for key, value in non_eligible_accounts.items():
-                    csv_out.writerow((key, value))
+                    csv_out.writerow([value])
 
                     pbar.update(1)
 

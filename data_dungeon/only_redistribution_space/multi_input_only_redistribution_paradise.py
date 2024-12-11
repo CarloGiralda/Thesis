@@ -305,12 +305,12 @@ def process_blocks(address_to_user, eligible_accounts, non_eligible_accounts, re
                         # include everything
                         redistribution = payment
                         
-                    if eligible_accounts.contains_address(receiver):
+                    if eligible_accounts.contains_key(receiver):
                         previous_redistribution = eligible_accounts.get_redistribution(receiver)
                         total_redistribution = previous_redistribution + redistribution
                         eligible_accounts.update_redistribution(receiver, total_redistribution)
 
-                    elif non_eligible_accounts.contains_address(receiver):
+                    elif non_eligible_accounts.contains_key(receiver):
                         previous_redistribution = non_eligible_accounts.get_redistribution(receiver)
                         total_redistribution = previous_redistribution + redistribution
                         non_eligible_accounts.update_redistribution(receiver, total_redistribution)
@@ -350,12 +350,12 @@ def multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, red
     global lock
     global user_index
 
-    folder = f'{redistribution_percentage}_{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-    dir_results_folder = f'{dir_results}/only_redistribution/multi_input/{redistribution_type}/{folder}'
+    folder = f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
+    dir_results_folder = os.path.join(dir_results, 'only_redistribution', 'multi_input', redistribution_type, redistribution_amount, folder)
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 
-    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_amount}.csv')
+    path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_percentage}.csv')
 
     if not os.path.exists(path_accounts):
 

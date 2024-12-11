@@ -37,6 +37,7 @@ def plot_nakamoto_coefficient(nakamoto_coefficients, nakamoto_file):
     plt.plot(percentages, nakamotos)
     plt.xlabel('Percentage')
     plt.ylabel('Nakamoto coefficient')
+    plt.yscale('log')
     plt.title('Nakamoto coefficient change over percentage of redistribution')
     plt.tight_layout()
     plt.savefig(nakamoto_file)
