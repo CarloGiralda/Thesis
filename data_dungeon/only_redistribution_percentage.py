@@ -63,9 +63,9 @@ def main():
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
     redistribution_type = 'equal'
-    redistribution_amount = 'fees'
-    redistribution_minimum = 0
-    redistribution_maximum = 2100000000000000
+    redistribution_amount = 'block_reward'
+    redistribution_minimum = 10000
+    redistribution_maximum = 100000000
     redistribution_user_percentage = 1.0
 
     ginis = {}

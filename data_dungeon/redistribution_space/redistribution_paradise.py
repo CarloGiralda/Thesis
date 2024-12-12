@@ -144,7 +144,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
     else:
         max_block_redistribution = 0
 
-    max_block_redistribution += total_extra_fee
+    max_redistribution = max_block_redistribution + total_extra_fee
     
     eligible_accounts.perform_addition()
     
@@ -170,16 +170,19 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
     if redistribution_type == 'no_redistribution':
 
-        actual_block_redistribution = 0
+        actual_redistribution = 0
     
     elif redistribution_type == 'equal':
 
-        redistribution_per_user = int(math.floor(max_block_redistribution / num_users)) if num_users > 0 else 0
+        redistribution_per_user = int(math.floor(max_redistribution / num_users)) if num_users > 0 else 0
         redistribution[number_of_file] = redistribution_per_user
-        actual_block_redistribution = redistribution_per_user * num_users
+        actual_redistribution = redistribution_per_user * num_users
 
         if redistribution_per_user > 0:
-            eligible_accounts.list[mask] += redistribution_per_user
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.list[mask] += redistribution_per_user
+            else:
+                eligible_accounts.list += redistribution_per_user
 
     elif redistribution_type == 'weight_based':
 
@@ -191,20 +194,19 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         total_weight = np.sum(inverse_weights)
         inverse_weights /= total_weight
         # compute the redistributed amount for each user
-        redistributed_amounts = (inverse_weights * max_block_redistribution).astype(int)
+        redistributed_amounts = (inverse_weights * max_redistribution).astype(int)
 
         # because the previous operations rounded down the values, something is left
-        actual_block_redistribution = np.sum(redistributed_amounts)
-        difference = max_block_redistribution - actual_block_redistribution
+        difference = max_redistribution - np.sum(redistributed_amounts)
         # assign the remaining in the most equal way possible
         remaining = distribute(difference, num_users)
         redistributed_amounts[mask] += remaining
 
-        actual_block_redistribution = max_block_redistribution
+        actual_redistribution = max_redistribution
 
         masked_redistributed_amounts = redistributed_amounts[mask]
 
-        min_redistribution, max_redistribution = numpy_minmax.minmax(masked_redistributed_amounts)
+        min_red, max_red = numpy_minmax.minmax(masked_redistributed_amounts)
 
         percentiles = [25, 50, 75]
         indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
@@ -212,10 +214,10 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         partitioned_data = np.partition(masked_redistributed_amounts, unique_indices)
         perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [partitioned_data[idx] for idx in indices]
 
-        redistribution[number_of_file] = [actual_block_redistribution, max_redistribution, min_redistribution, 
+        redistribution[number_of_file] = [actual_redistribution, max_red, min_red, 
                                           perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
         
-        eligible_accounts.list[mask] += redistributed_amounts
+        eligible_accounts.list += redistributed_amounts
 
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
     filtered_indices = np.argwhere(eligible_accounts.list[mask] > redistribution_maximum).flatten()
@@ -229,7 +231,12 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
             balance = eligible_accounts.remove(address)
             non_eligible_accounts[address] = balance
 
-    new_total_reward = total_reward - actual_block_redistribution
+    # redistribution coming from the block (fees, block reward or total reward), not coming from extra fees
+    block_redistribution = actual_redistribution
+    if total_extra_fee > 0 and actual_redistribution > max_block_redistribution:
+        block_redistribution = max_block_redistribution
+
+    new_total_reward = total_reward - block_redistribution
     # ratio between previous total reward and redistributed total reward
     ratio = new_total_reward / total_reward
 
