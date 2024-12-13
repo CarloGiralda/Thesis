@@ -417,8 +417,8 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
                     pbar.update(1)
 
-    plot_balance_histogram(path_accounts)
-    if redistribution_type == 'equal':
-        plot_linear_redistribution_histogram(path_redistribution)
-    elif redistribution_type == 'weight_based':
-        plot_weight_based_metrics(path_redistribution)
+    # plot_balance_histogram(path_accounts)
+    # if redistribution_type == 'equal':
+    #     plot_linear_redistribution_histogram(path_redistribution)
+    # elif redistribution_type == 'weight_based':
+    #     plot_weight_based_metrics(path_redistribution)

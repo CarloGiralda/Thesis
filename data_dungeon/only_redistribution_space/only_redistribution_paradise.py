@@ -224,9 +224,11 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         num_users = np.count_nonzero(mask)
 
+    indices = np.flatnonzero(mask)
+
     if redistribution_type == 'no_redistribution':
 
-        actual_redistribution = 0
+        max_block_redistribution = 0
     
     elif redistribution_type == 'equal':
 
@@ -235,18 +237,22 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         if redistribution_per_user > 0:
             if redistribution_user_percentage < 1.0:
-                eligible_accounts.first_list[mask] += redistribution_per_user
-                eligible_accounts.second_list[mask] += redistribution_per_user
+                eligible_accounts.first_list[indices] += redistribution_per_user
+                eligible_accounts.second_list[indices] += redistribution_per_user
             else:
                 eligible_accounts.first_list += redistribution_per_user
                 eligible_accounts.second_list += redistribution_per_user
+
+        remaining = max_redistribution - actual_redistribution
+        eligible_accounts.first_list[indices[:remaining]] += 1
+        eligible_accounts.second_list[indices[:remaining]] += 1
 
     elif redistribution_type == 'weight_based':
 
         # compute the inverse of the eligible balances
         # by doing this, the lowest balance will have the highest weight, while the highest balance will have the lowest weight
         inverse_weights = np.zeros_like(eligible_balances, dtype=float)
-        np.divide(1, eligible_balances, out=inverse_weights, where=mask)
+        inverse_weights[indices] = 1 / eligible_balances[indices]
         # normalize the weights
         total_weight = np.sum(inverse_weights)
         inverse_weights /= total_weight
@@ -258,31 +264,24 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         if difference > 0:
             # assign the remaining in the most equal way possible
             remaining = distribute(difference, num_users)
-            redistributed_amounts[mask] += remaining
-
-        actual_redistribution = max_redistribution
+            redistributed_amounts[indices] += remaining
         
         eligible_accounts.first_list += redistributed_amounts
         eligible_accounts.second_list += redistributed_amounts
 
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
-    filtered_indices = np.argwhere(eligible_accounts.first_list[mask] > redistribution_maximum).flatten()
+    filtered_indices = np.argwhere(eligible_accounts.first_list[indices] > redistribution_maximum).flatten()
 
     if len(filtered_indices) > 0:
         # map to original indices
-        original_indices = np.flatnonzero(mask)[filtered_indices]
+        original_indices = indices[filtered_indices]
 
         for index in original_indices:
             address = eligible_accounts.reverse_dictionary[index]
             balance, redistribution = eligible_accounts.remove(address)
             non_eligible_accounts.add(address, balance, redistribution)
 
-    # redistribution coming from the block (fees, block reward or total reward), not coming from extra fees
-    block_redistribution = actual_redistribution
-    if total_extra_fee > 0 and actual_redistribution > max_block_redistribution:
-        block_redistribution = max_block_redistribution
-
-    return eligible_accounts, non_eligible_accounts, block_redistribution
+    return eligible_accounts, non_eligible_accounts, max_block_redistribution
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
@@ -426,27 +425,31 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
 
         with open(path_accounts, 'w+') as file:
             csv_out = csv.writer(file)
-            csv_out.writerow(['redistribution'])
+            csv_out.writerow(['redistribution', 'balance'])
 
             eligible_addresses = eligible_accounts.dictionary
+            eligible_balances = eligible_accounts.first_list
             eligible_redistribution = eligible_accounts.second_list
 
             # save the accounts which have already received redistribution
             with tqdm(total=len(eligible_addresses), desc=f'Writing eligible accounts') as pbar:
                 for address, index in eligible_addresses.items():
                     redistribution = eligible_redistribution[index]
-                    csv_out.writerow([redistribution])
+                    balance = eligible_balances[index]
+                    csv_out.writerow((redistribution, balance))
 
                     pbar.update(1)
 
             non_eligible_addresses = non_eligible_accounts.dictionary
+            non_eligible_balances = non_eligible_accounts.first_list
             non_eligible_redistribution = non_eligible_accounts.second_list
 
             # save accounts that are not eligible
             with tqdm(total=len(non_eligible_addresses), desc=f'Writing non-eligible accounts') as pbar:
                 for address, index in non_eligible_addresses.items():
                     redistribution = non_eligible_redistribution[index]
-                    csv_out.writerow([redistribution])
+                    balance = non_eligible_balances[index]
+                    csv_out.writerow((redistribution, balance))
 
                     pbar.update(1)
 

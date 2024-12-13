@@ -16,8 +16,8 @@ config_file = './data_dungeon/only_redistribution_space/config.yaml'
 
 def _process_balance_chunk(chunk):
     # Extract balances and calculate the total sum in a vectorized manner
-    local_balances = chunk['redistribution'].tolist()
-    local_total_sum = chunk['redistribution'].sum()
+    local_balances = chunk['balance'].tolist()
+    local_total_sum = chunk['balance'].sum()
 
     return local_balances, local_total_sum
 
@@ -73,6 +73,8 @@ def main():
 
     for i in range(0, 11):
         percentage = i / 10
+
+        print('Percentage: ', percentage)
 
         dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
         csv_file = f'{dir_files}/accounts_{percentage}.csv'

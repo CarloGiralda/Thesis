@@ -456,27 +456,31 @@ def multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, red
 
         with open(path_accounts, 'w+') as file:
             csv_out = csv.writer(file)
-            csv_out.writerow(['redistribution'])
+            csv_out.writerow(['redistribution', 'balance'])
 
             eligible_addresses = eligible_accounts.dictionary
+            eligible_balances = eligible_accounts.first_list
             eligible_redistribution = eligible_accounts.second_list
 
             # save the accounts which have already received redistribution
             with tqdm(total=len(eligible_addresses), desc=f'Writing eligible accounts') as pbar:
                 for address, index in eligible_addresses.items():
                     redistribution = eligible_redistribution[index]
-                    csv_out.writerow([redistribution])
+                    balance = eligible_balances[index]
+                    csv_out.writerow((redistribution, balance))
 
                     pbar.update(1)
 
             non_eligible_addresses = non_eligible_accounts.dictionary
+            non_eligible_balances = eligible_accounts.first_list
             non_eligible_redistribution = non_eligible_accounts.second_list
 
             # save accounts that are not eligible
             with tqdm(total=len(non_eligible_addresses), desc=f'Writing non-eligible accounts') as pbar:
                 for address, index in non_eligible_addresses.items():
                     redistribution = non_eligible_redistribution[index]
-                    csv_out.writerow([redistribution])
+                    balance = non_eligible_balances[index]
+                    csv_out.writerow((redistribution, balance))
 
                     pbar.update(1)
 

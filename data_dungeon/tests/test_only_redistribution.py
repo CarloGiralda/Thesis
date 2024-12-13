@@ -272,7 +272,42 @@ def test_perform_redistribution():
     else:
         print('Test failed: simple equal redistribution')
         return
+    
+    # Test for equal redistribution but with less satoshis than users
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([0, 0, 0])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
 
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    redistribution_maximum = 500
+    redistribution_percentage = 0.5
+    redistribution_user_percentage = 1.0
+    total_extra_fee = 0
+
+    redistribution_type = 'equal'
+    redistribution_amount = 'fees'
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 4, 'Fees': 2
+    }
+
+    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+        eligible_accounts, non_eligible_accounts)
+
+    condition = len(eligible_accounts.dictionary) == 3 and len(non_eligible_accounts.dictionary) == 3 and eligible_accounts.get_redistribution('bc12') == 1 and eligible_accounts.get_redistribution('bc13') == 0 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 1
+    if condition:
+        print('Test passed: equal redistribution')
+    else:
+        print('Test failed: equal redistribution')
+        return
+    
     # Test for equal redistribution with percentage on users
     eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
     eligible_balances = np.array([100, 25, 320])
@@ -336,7 +371,7 @@ def test_perform_redistribution():
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1259 and non_eligible_accounts.get_redistribution('bc13') == 1259 and block_redistribution == 2500
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1260 and non_eligible_accounts.get_redistribution('bc13') == 1259 and block_redistribution == 2500
     if condition:
         print('Test passed: equal redistribution with percentage of users and an extra fee')
     else:
