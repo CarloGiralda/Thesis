@@ -262,11 +262,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 202 and eligible_accounts.get_redistribution('bc13') == 202 and non_eligible_accounts.get_redistribution('bc14') == 203 and block_redistribution == 600
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 202 and eligible_accounts.get_redistribution('bc13') == 202 and non_eligible_accounts.get_redistribution('bc14') == 203 and block_redistribution == 600 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: simple equal redistribution')
     else:
@@ -297,11 +297,11 @@ def test_perform_redistribution():
              'Reward': 4, 'Fees': 2
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 3 and len(non_eligible_accounts.dictionary) == 3 and eligible_accounts.get_redistribution('bc12') == 1 and eligible_accounts.get_redistribution('bc13') == 0 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 1
+    condition = len(eligible_accounts.dictionary) == 3 and len(non_eligible_accounts.dictionary) == 3 and eligible_accounts.get_redistribution('bc12') == 0 and eligible_accounts.get_redistribution('bc13') == 0 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 0 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: equal redistribution')
     else:
@@ -332,11 +332,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and non_eligible_accounts.get_redistribution('bc13') == 1902 and block_redistribution == 1900
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and non_eligible_accounts.get_redistribution('bc13') == 1902 and block_redistribution == 1900 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: equal redistribution with percentage of users')
     else:
@@ -367,15 +367,155 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1260 and non_eligible_accounts.get_redistribution('bc13') == 1259 and block_redistribution == 2500
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1259 and non_eligible_accounts.get_redistribution('bc13') == 1259 and block_redistribution == 2500 and remaining_from_extra_fee == 1
     if condition:
         print('Test passed: equal redistribution with percentage of users and an extra fee')
     else:
         print('Test failed: equal redistribution with percentage of users and an extra fee')
+        return
+    
+    # Test for equal redistribution
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([2, 2, 3])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
+
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    redistribution_maximum = 500
+    redistribution_percentage = 0.5
+    redistribution_user_percentage = 1.0
+    total_extra_fee = 0
+
+    redistribution_type = 'almost_equal'
+    redistribution_amount = 'fees'
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 5000, 'Fees': 1200
+    }
+
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+        eligible_accounts, non_eligible_accounts)
+
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 202 and eligible_accounts.get_redistribution('bc13') == 202 and non_eligible_accounts.get_redistribution('bc14') == 203 and block_redistribution == 600 and remaining_from_extra_fee == 0
+    if condition:
+        print('Test passed: simple almost equal redistribution')
+    else:
+        print('Test failed: simple almost equal redistribution')
+        return
+    
+    # Test for equal redistribution but with less satoshis than users
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([0, 0, 0])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
+
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    redistribution_maximum = 500
+    redistribution_percentage = 0.5
+    redistribution_user_percentage = 1.0
+    total_extra_fee = 0
+
+    redistribution_type = 'almost_equal'
+    redistribution_amount = 'fees'
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 4, 'Fees': 2
+    }
+
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+        eligible_accounts, non_eligible_accounts)
+
+    condition = len(eligible_accounts.dictionary) == 3 and len(non_eligible_accounts.dictionary) == 3 and eligible_accounts.get_redistribution('bc12') == 1 and eligible_accounts.get_redistribution('bc13') == 0 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 1 and remaining_from_extra_fee == 0
+    if condition:
+        print('Test passed: almost equal redistribution')
+    else:
+        print('Test failed: almost equal redistribution')
+        return
+    
+    # Test for equal redistribution with percentage on users
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([2, 2, 3])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
+
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    redistribution_maximum = 500
+    redistribution_percentage = 0.5
+    redistribution_user_percentage = 0.5
+    total_extra_fee = 0
+
+    redistribution_type = 'almost_equal'
+    redistribution_amount = 'block_reward'
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 5000, 'Fees': 1200
+    }
+
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+        eligible_accounts, non_eligible_accounts)
+
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and non_eligible_accounts.get_redistribution('bc13') == 1902 and block_redistribution == 1900 and remaining_from_extra_fee == 0
+    if condition:
+        print('Test passed: almost equal redistribution with percentage of users')
+    else:
+        print('Test failed: almost equal redistribution with percentage of users')
+        return
+
+    # Test for equal redistribution with percentage on users and an extra fee
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([2, 2, 3])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
+
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    redistribution_maximum = 500
+    redistribution_percentage = 0.5
+    redistribution_user_percentage = 0.75
+    total_extra_fee = 15
+
+    redistribution_type = 'almost_equal'
+    redistribution_amount = 'total_reward'
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 5000, 'Fees': 1200
+    }
+
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+        eligible_accounts, non_eligible_accounts)
+
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1260 and non_eligible_accounts.get_redistribution('bc13') == 1259 and block_redistribution == 2500 and remaining_from_extra_fee == 0
+    if condition:
+        print('Test passed: almost equal redistribution with percentage of users and an extra fee')
+    else:
+        print('Test failed: almost equal redistribution with percentage of users and an extra fee')
         return
 
     # Test for simple weight based redistribution
@@ -402,11 +542,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 471 and non_eligible_accounts.get_redistribution('bc13') == 1882 and eligible_accounts.get_redistribution('bc14') == 147 and block_redistribution == 2500
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 471 and non_eligible_accounts.get_redistribution('bc13') == 1882 and eligible_accounts.get_redistribution('bc14') == 147 and block_redistribution == 2500 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: simple weight based redistribution')
     else:
@@ -437,11 +577,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 900 and non_eligible_accounts.get_redistribution('bc13') == 3600 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 4500
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_redistribution('bc12') == 900 and non_eligible_accounts.get_redistribution('bc13') == 3600 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 4500 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: weight based redistribution with percentage on users')
     else:
@@ -472,11 +612,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+    eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
         eligible_accounts, non_eligible_accounts)
 
-    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1001 and non_eligible_accounts.get_redistribution('bc13') == 4002 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 4500
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_redistribution('bc12') == 1001 and non_eligible_accounts.get_redistribution('bc13') == 4002 and eligible_accounts.get_redistribution('bc14') == 0 and block_redistribution == 4500 and remaining_from_extra_fee == 0
     if condition:
         print('Test passed: weight based redistribution with percentage on users and an extra fee')
     else:
@@ -508,9 +648,10 @@ def test_perform_coinbase_transaction():
     redistribution_maximum = 1000
     redistribution_minimum = 10
     redistribution_amount = 'fees'
+    remaining_from_extra_fee = 0
 
     eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
-        block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount,
+        block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
         eligible_accounts, non_eligible_accounts)
     
     eligible_accounts.perform_addition()
@@ -549,7 +690,7 @@ def test_perform_coinbase_transaction():
     redistribution_amount = 'block_reward'
 
     eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
-        block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount,
+        block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
         eligible_accounts, non_eligible_accounts)
     
     eligible_accounts.perform_addition()
@@ -560,4 +701,44 @@ def test_perform_coinbase_transaction():
         print('Test passed: coinbase transaction with block reward')
     else:
         print('Test failed: coinbase transaction with block reward')
+        return
+    
+    # Test for coinbase transaction with fees and an additional amount obtained from a not redistributed extra fee
+    eligible_addresses = {'bc12': 0, 'bc13': 1, 'bc14': 2}
+    eligible_balances = np.array([100, 25, 320])
+    eligible_redistributions = np.array([0, 0, 0])
+    eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, eligible_redistributions)
+
+    non_eligible_addresses = {'bc15': 0, 'bc16': 1, 'bc17': 2}
+    non_eligible_balances = np.array([501, 750, 1000])
+    non_eligible_redistributions = np.array([100, 100, 100])
+    non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, non_eligible_redistributions)
+
+    block = {'Block Hash': '000000000000000000004988528F7BE1744D4F05E706E33DDB36963236FC3C41', 
+             'Previous Block Hash': '00000000000000000000DF86517266E2DCE9766241C14FE224D5FED1C09F5F8D', 
+             'Reward': 5000, 'Fees': 1200, 
+             'Transactions': [
+                 {'Inputs': [{'Sender': None, 'Value': 0}], 
+                  'Outputs': [{'Receiver': 'bc12', 'Value': 4500}, {'Receiver': 'bc13', 'Value': 500}, {'Receiver': 'INVALID', 'Value': 0}]}, 
+            ]}
+    
+    block_redistribution = 1000
+
+    redistribution_maximum = 1000
+    redistribution_minimum = 10
+    redistribution_amount = 'fees'
+    remaining_from_extra_fee = 100
+
+    eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
+        block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
+        eligible_accounts, non_eligible_accounts)
+    
+    eligible_accounts.perform_addition()
+    non_eligible_accounts.perform_addition()
+    
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and non_eligible_accounts.get_redistribution('bc12') == 270 and eligible_accounts.get_redistribution('bc13') == 30 and non_eligible_accounts.get_balance('bc12') == 3790 and eligible_accounts.get_balance('bc13') == 435
+    if condition:
+        print('Test passed: coinbase transaction with fees and an additional amount obtained from a not redistributed extra fee')
+    else:
+        print('Test failed: coinbase transaction with fees and an additional amount obtained from a not redistributed extra fee')
         return

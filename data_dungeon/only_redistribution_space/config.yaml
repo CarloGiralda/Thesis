@@ -17,7 +17,7 @@ extra_fee:
 
 redistribution:
   # type of redistribution
-  # [no_redistribution, equal, weight_based]
+  # [no_redistribution, equal, almost_equal, weight_based]
   # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
   type: 'no_redistribution'
 

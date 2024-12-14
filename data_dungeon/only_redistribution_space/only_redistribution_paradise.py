@@ -124,7 +124,7 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
         
     return eligible_accounts, non_eligible_accounts, total_extra_fee_percentage
 
-def perform_coinbase_transaction(block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount,
+def perform_coinbase_transaction(block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
                                  eligible_accounts, non_eligible_accounts):
     # fees payed by users
     fees = block['Fees']
@@ -145,8 +145,16 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
         receiver = output['Receiver']
         value = output['Value']
 
-        exact_payment = value * ratio
-        payment = int(math.floor(exact_payment))
+        # ratio between the original reward of the user and the total reward of the block
+        # percentage of total reward received by a user
+        # different from ratio, that is the percentage of total_reward left after redistribution
+        second_ratio = value / total_reward
+
+        payment = int(math.floor(value * ratio))
+
+        # if the redistribution has not redistributed all the amount, then give it to the miners (according to the share of the original block that they had)
+        additional_payment = int(math.floor(remaining_from_extra_fee * second_ratio))
+        payment += additional_payment
 
         if payment > 0:
 
@@ -155,17 +163,12 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
                 eligible_accounts, non_eligible_accounts, 
                 redistribution_minimum, redistribution_maximum, 0, 0)
 
-            # ratio between the original reward of the user and the total reward of the block
-            # percentage of total reward received by a user
-            # different from ratio, that is the percentage of total_reward left after redistribution
-            second_ratio = value / total_reward
-
             if redistribution_amount == 'fees':
-                redistribution = (fees - block_redistribution) * second_ratio
+                redistribution = (fees - block_redistribution) * second_ratio + additional_payment
             elif redistribution_amount == 'block_reward':
-                redistribution = (block_reward - block_redistribution) * second_ratio
+                redistribution = (block_reward - block_redistribution) * second_ratio + additional_payment
             else:
-                redistribution = (total_reward - block_redistribution) * second_ratio
+                redistribution = (total_reward - block_redistribution) * second_ratio + additional_payment
 
             redistribution = int(math.floor(redistribution))
                                     
@@ -229,10 +232,30 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
     if redistribution_type == 'no_redistribution':
 
         max_block_redistribution = 0
+        redistribution_extra_fee = 0
     
     elif redistribution_type == 'equal':
 
-        redistribution_per_user = int(math.floor(max_redistribution / num_users)) if num_users > 0 else 0
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
+        actual_redistribution = redistribution_per_user * num_users
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.first_list[indices] += redistribution_per_user
+                eligible_accounts.second_list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.first_list += redistribution_per_user
+                eligible_accounts.second_list += redistribution_per_user
+
+        # overwrite the max_block_redistribution (that is going to be returned) if the actual redistribution is less than the supposed one
+        if actual_redistribution < max_block_redistribution:
+            max_block_redistribution = actual_redistribution
+
+        redistribution_extra_fee = actual_redistribution - max_block_redistribution if actual_redistribution > max_block_redistribution else 0
+
+    elif redistribution_type == 'almost_equal':
+
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
         actual_redistribution = redistribution_per_user * num_users
 
         if redistribution_per_user > 0:
@@ -246,6 +269,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         remaining = max_redistribution - actual_redistribution
         eligible_accounts.first_list[indices[:remaining]] += 1
         eligible_accounts.second_list[indices[:remaining]] += 1
+
+        redistribution_extra_fee = total_extra_fee
 
     elif redistribution_type == 'weight_based':
 
@@ -269,6 +294,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         eligible_accounts.first_list += redistributed_amounts
         eligible_accounts.second_list += redistributed_amounts
 
+        redistribution_extra_fee = total_extra_fee
+
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
     filtered_indices = np.argwhere(eligible_accounts.first_list[indices] > redistribution_maximum).flatten()
 
@@ -281,7 +308,9 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
             balance, redistribution = eligible_accounts.remove(address)
             non_eligible_accounts.add(address, balance, redistribution)
 
-    return eligible_accounts, non_eligible_accounts, max_block_redistribution
+    remaining_from_extra_fee = total_extra_fee - redistribution_extra_fee
+
+    return eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
@@ -307,12 +336,12 @@ def process_blocks(eligible_accounts, non_eligible_accounts,
             # the amount sent multiplied by extra_fee_percentage
             total_extra_fee = int(extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage)
 
-            eligible_accounts, non_eligible_accounts, block_redistribution = perform_redistribution(
+            eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
                 redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee,
                 eligible_accounts, non_eligible_accounts)
             
             eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
-                block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, 
+                block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
                 eligible_accounts, non_eligible_accounts)
                 
             pbar.update(1)

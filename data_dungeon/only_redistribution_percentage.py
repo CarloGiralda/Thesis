@@ -61,7 +61,7 @@ def main():
     metric_type = 'only_redistribution'
     addresses = 'single_input'
     extra_fee_amount = 0
-    extra_fee_percentage = 0.0
+    extra_fee_percentage = 0.001
     redistribution_type = 'equal'
     redistribution_amount = 'fees'
     redistribution_minimum = 0
