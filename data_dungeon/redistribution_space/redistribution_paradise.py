@@ -7,7 +7,7 @@ import numpy as np
 import numpy_minmax
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from tqdm import tqdm
-from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_weight_based_metrics
+from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_almost_equal_metrics, plot_weight_based_metrics
 from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
 # number of readers for blocks
@@ -111,7 +111,7 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
             payment = output['Value']
 
             if extra_fee_percentage > 0.0:
-                extra_fee_percentage_per_output = math.ceil(extra_fee_percentage * payment)
+                extra_fee_percentage_per_output = int(math.ceil(extra_fee_percentage * payment))
                 total_extra_fee_percentage += extra_fee_percentage_per_output
 
             if isinstance(receiver, list):
@@ -125,7 +125,48 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
                 redistribution_minimum, redistribution_maximum, extra_fee_per_output[output_index], extra_fee_percentage_per_output)
 
     return eligible_accounts, non_eligible_accounts, total_extra_fee_percentage
+
+def perform_coinbase_transaction(block, block_redistribution, redistribution_minimum, redistribution_maximum, remaining_from_extra_fee,
+                                 eligible_accounts, non_eligible_accounts):
+    # total reward = block reward + fees
+    total_reward = block['Reward']
+
+    # block_redistribution is the amount of the block that has been redistributed (not including the extra fees)
+    new_total_reward = total_reward - block_redistribution
+    # ratio between previous total reward and redistributed total reward
+    ratio = new_total_reward / total_reward
+    
+    coinbase_transaction = block['Transactions'][0]
+    for i in range(len(coinbase_transaction['Outputs'])):
+        output = coinbase_transaction['Outputs'][i]
+
+        receiver = output['Receiver']
+        value = output['Value']
+
+        # ratio between the original reward of the user and the total reward of the block
+        # percentage of total reward received by a user
+        # different from ratio, that is the percentage of total_reward left after redistribution
+        second_ratio = value / total_reward
+
+        payment = int(math.floor(value * ratio))
+
+        # if the redistribution has not redistributed all the amount, then give it to the miners (according to the share of the original block that they had)
+        additional_payment = int(math.floor(remaining_from_extra_fee * second_ratio))
+        payment += additional_payment
+
+        if isinstance(receiver, list):
+            continue
+        if isinstance(receiver, bytes):
+            receiver = receiver.decode('utf-8')
+
+        if payment > 0:
+            eligible_accounts, non_eligible_accounts = perform_input_output(
+                receiver, payment, 1, 
+                eligible_accounts, non_eligible_accounts, 
+                redistribution_minimum, redistribution_maximum, 0, 0)
             
+    return eligible_accounts, non_eligible_accounts
+
 def perform_redistribution(redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
                             redistribution, eligible_accounts, non_eligible_accounts):
     # fees payed by users
@@ -168,28 +209,58 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         num_users = np.count_nonzero(mask)
 
+    indices = np.flatnonzero(mask)
+
     if redistribution_type == 'no_redistribution':
 
-        actual_redistribution = 0
-    
+        max_block_redistribution = 0
+        redistribution_extra_fee = 0
+
     elif redistribution_type == 'equal':
 
-        redistribution_per_user = int(math.floor(max_redistribution / num_users)) if num_users > 0 else 0
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
         redistribution[number_of_file] = redistribution_per_user
         actual_redistribution = redistribution_per_user * num_users
 
         if redistribution_per_user > 0:
             if redistribution_user_percentage < 1.0:
-                eligible_accounts.list[mask] += redistribution_per_user
+                eligible_accounts.list[indices] += redistribution_per_user
             else:
                 eligible_accounts.list += redistribution_per_user
+
+        # overwrite the max_block_redistribution (that is going to be returned) if the actual redistribution is less than the supposed one
+        if actual_redistribution < max_block_redistribution:
+            max_block_redistribution = actual_redistribution
+
+        redistribution_extra_fee = actual_redistribution - max_block_redistribution if actual_redistribution > max_block_redistribution else 0
+
+    elif redistribution_type == 'almost_equal':
+
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
+        actual_redistribution = redistribution_per_user * num_users
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.list += redistribution_per_user
+
+        remaining = max_redistribution - actual_redistribution
+        eligible_accounts.list[indices[:remaining]] += 1
+
+        percentiles = [25, 50, 75]
+        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
+        redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+
+        redistribution_extra_fee = total_extra_fee
 
     elif redistribution_type == 'weight_based':
 
         # compute the inverse of the eligible balances
         # by doing this, the lowest balance will have the highest weight, while the highest balance will have the lowest weight
         inverse_weights = np.zeros_like(eligible_balances, dtype=float)
-        np.divide(1, eligible_balances, out=inverse_weights, where=mask)
+        inverse_weights[indices] = 1 / eligible_balances[indices]
         # normalize the weights
         total_weight = np.sum(inverse_weights)
         inverse_weights /= total_weight
@@ -198,49 +269,43 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         # because the previous operations rounded down the values, something is left
         difference = max_redistribution - np.sum(redistributed_amounts)
-        # assign the remaining in the most equal way possible
-        remaining = distribute(difference, num_users)
-        redistributed_amounts[mask] += remaining
-
-        actual_redistribution = max_redistribution
+        if difference > 0:
+            # assign the remaining in the most equal way possible
+            remaining = distribute(difference, num_users)
+            redistributed_amounts[indices] += remaining
 
         masked_redistributed_amounts = redistributed_amounts[mask]
 
         min_red, max_red = numpy_minmax.minmax(masked_redistributed_amounts)
 
         percentiles = [25, 50, 75]
-        indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
-        unique_indices = np.unique(indices)
+        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+        unique_indices = np.unique(perc_indices)
         partitioned_data = np.partition(masked_redistributed_amounts, unique_indices)
-        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [partitioned_data[idx] for idx in indices]
+        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [partitioned_data[idx] for idx in perc_indices]
 
-        redistribution[number_of_file] = [actual_redistribution, max_red, min_red, 
+        redistribution[number_of_file] = [max_redistribution, max_red, min_red, 
                                           perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
         
         eligible_accounts.list += redistributed_amounts
 
+        redistribution_extra_fee = total_extra_fee
+
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
-    filtered_indices = np.argwhere(eligible_accounts.list[mask] > redistribution_maximum).flatten()
+    filtered_indices = np.argwhere(eligible_accounts.list[indices] > redistribution_maximum).flatten()
 
     if len(filtered_indices) > 0:
         # map to original indices
-        original_indices = np.flatnonzero(mask)[filtered_indices]
+        original_indices = indices[filtered_indices]
 
         for index in original_indices:
             address = eligible_accounts.reverse_dictionary[index]
             balance = eligible_accounts.remove(address)
             non_eligible_accounts[address] = balance
 
-    # redistribution coming from the block (fees, block reward or total reward), not coming from extra fees
-    block_redistribution = actual_redistribution
-    if total_extra_fee > 0 and actual_redistribution > max_block_redistribution:
-        block_redistribution = max_block_redistribution
+    remaining_from_extra_fee = total_extra_fee - redistribution_extra_fee
 
-    new_total_reward = total_reward - block_redistribution
-    # ratio between previous total reward and redistributed total reward
-    ratio = new_total_reward / total_reward
-
-    return redistribution, eligible_accounts, non_eligible_accounts, ratio
+    return redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
@@ -267,27 +332,13 @@ def process_blocks(eligible_accounts, non_eligible_accounts, redistribution,
             # the amount sent multiplied by extra_fee_percentage
             total_extra_fee = extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage
 
-            redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+            redistribution, eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
                 redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
                 redistribution, eligible_accounts, non_eligible_accounts)
             
-            coinbase_transaction = block['Transactions'][0]
-            for i in range(len(coinbase_transaction['Outputs'])):
-                output = coinbase_transaction['Outputs'][i]
-                receiver = output['Receiver']
-                exact_payment = output['Value'] * ratio
-                payment = int(math.floor(exact_payment))
-
-                if isinstance(receiver, list):
-                    continue
-                if isinstance(receiver, bytes):
-                    receiver = receiver.decode('utf-8')
-
-                if payment > 0:
-                    eligible_accounts, non_eligible_accounts = perform_input_output(
-                        receiver, payment, 1, 
-                        eligible_accounts, non_eligible_accounts, 
-                        redistribution_minimum, redistribution_maximum, 0, 0)
+            eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
+                block, block_redistribution, redistribution_minimum, redistribution_maximum, remaining_from_extra_fee,
+                eligible_accounts, non_eligible_accounts)
 
             number_of_file += 1
             pbar.update(1)
@@ -417,8 +468,10 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
                     pbar.update(1)
 
-    # plot_balance_histogram(path_accounts)
-    # if redistribution_type == 'equal':
-    #     plot_linear_redistribution_histogram(path_redistribution)
-    # elif redistribution_type == 'weight_based':
-    #     plot_weight_based_metrics(path_redistribution)
+    plot_balance_histogram(path_accounts)
+    if redistribution_type == 'equal':
+        plot_linear_redistribution_histogram(path_redistribution)
+    elif redistribution_type == 'almost_equal':
+        plot_almost_equal_metrics(path_redistribution)
+    elif redistribution_type == 'weight_based':
+        plot_weight_based_metrics(path_redistribution)

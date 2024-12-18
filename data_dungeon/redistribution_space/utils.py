@@ -289,3 +289,77 @@ def plot_weight_based_metrics(csv_file, chunk_size=1000000, groups=1000):
     ax.set_xlim(min_value, max_value * 1.5)
 
     plt.show()
+
+def plot_almost_equal_metrics(csv_file, chunk_size=1000000, groups=1000):
+    is_first_index = True
+    first_index = 0
+
+    block_heights = []
+
+    perc_25_redistribution_per_block = []
+    perc_50_redistribution_per_block = []
+    perc_75_redistribution_per_block = []
+
+    temp_height = np.array([0] * groups)
+    temp0 = np.array([0] * groups)
+    temp1 = np.array([0] * groups)
+    temp2 = np.array([0] * groups)
+
+    for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc="Reading CSV in chunks"):
+        for index, row in chunk.iterrows():
+            # plus 2 is necessary because the blocks start at height 865003
+            array_index = (index + 2) % groups
+            if is_first_index:
+                first_index = array_index
+                is_first_index = False
+            height = row['height']
+            redistribution = row['redistribution']
+
+            temp_height[array_index] = height
+            redistribution = json.loads(redistribution)
+            temp0[array_index] = redistribution[0]
+            temp1[array_index] = redistribution[1]
+            temp2[array_index] = redistribution[2]
+
+            if height % groups == 0:
+                # mask for excluding default values if the first_index % 1000 == 1 (the first index is not 001, but something else)
+                mask = np.ones(groups, dtype=bool)
+                if first_index % 1000 != 1:
+                    for invalid_index in range(0, first_index):
+                        mask[invalid_index] = False
+                
+                block_heights.append(f'{temp_height[first_index]} ~ {temp_height[array_index]}')
+                perc_25_redistribution_per_block.append(np.mean(temp0, where=mask))
+                perc_50_redistribution_per_block.append(np.mean(temp1, where=mask))
+                perc_75_redistribution_per_block.append(np.mean(temp2, where=mask))
+
+                is_first_index = True
+
+    # percentile redistribution
+    percentiles = {'25th': perc_25_redistribution_per_block,
+               '50th': perc_50_redistribution_per_block,
+               '75th': perc_75_redistribution_per_block}
+    
+    y = np.arange(len(block_heights))
+    height = 0.175
+    multiplier = 0
+
+    _, ax = plt.subplots(layout='constrained', figsize=(10, 6))
+
+    for attribute, measurement in percentiles.items():
+        measurement = np.round(measurement, 1)
+        offset = height * multiplier
+        rects = ax.barh(y + offset, measurement, height, label=attribute)
+        ax.bar_label(rects, padding=3, fontsize=8.5)
+        multiplier += 1
+
+    ax.set_xlabel('Satoshis')
+    ax.set_title('Percentiles Redistribution by Block Height')
+    ax.set_yticks(y + height, block_heights)
+    ax.legend(loc='upper right', ncols=1)
+
+    min_value = min(min(perc_25_redistribution_per_block), min(perc_50_redistribution_per_block), min(perc_75_redistribution_per_block))
+    max_value = max(max(perc_25_redistribution_per_block), max(perc_50_redistribution_per_block), max(perc_75_redistribution_per_block))
+    ax.set_xlim(min_value, max_value * 1.5)
+
+    plt.show()

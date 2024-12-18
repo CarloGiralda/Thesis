@@ -10,22 +10,23 @@ from database.multi_input_accounts_database import create_connection, retrieve_u
 
 metric_type = 'normal'
 address_grouping = 'single_input'
-redistribution_type = 'weight_based'
-redistribution_amount = 'total_reward'
+redistribution_type = 'no_redistribution'
+redistribution_amount = 'fees'
 percentage = 0.5
-user_percentage = 0.75
+user_percentage = 1.0
 extra_fee_amount = 0
-extra_fee_percentage = 0.001
-minimum = 10000
-maximum = 100000000
+extra_fee_percentage = 0.0
+minimum = 1
+maximum = 1
 csv_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{redistribution_amount}.csv'
 
 chunk_size = 1000000
 
 lorenz_curve_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/lorenz_curve_{redistribution_amount}.png'
 
-# Exchanges, ETF, Custodial Companies addresses in the top 500 holders
-known_wallets = set(['34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo', 'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97', 'bc1ql49ydapnjafl5t2cp9zqpjwe6pdgmxy98859v2', 
+# Exchanges, ETFs, Custodial Companies addresses in the top 500 holders (and two of Satoshi's addresses)
+known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S',
+                     '34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo', 'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97', 'bc1ql49ydapnjafl5t2cp9zqpjwe6pdgmxy98859v2', 
                      '3M219KR5vEneNb47ewrPfWyb5jQ2DjxRP6', 'bc1qazcm763858nkj2dj986etajv6wquslv8uxwczt', '1FeexV6bAHb8ybZjqQMjJrcCrHGW9sb6uF', 
                      'bc1qjasf9z3h7w3jspkhtgatgpyvvzgpa2wwd2lr0eh5tx44reyn2k7sfc27a4', '3LYJfcfHPXYJreMsASk2jkn69LWEYKzexb', 'bc1qcv8h9hp5w8c4qpze0a4tdxw6qjtvg8yps23k0g3aymxx7jlesv4q4t6f65', 
                      '3PXBET2GrTwCamkeDzKCx8DeGDyrbuGKoc', 'bc1q4j7fcl8zx5yl56j00nkqez9zf3f6ggqchwzzcs5hjxwqhsgxvavq3qfgpr', '3MgEAFWu1HKSnZ5ZsC8qf61ZW18xrP5pgd', 
@@ -53,11 +54,11 @@ def _process_balance_chunk(chunk, known_users):
     if metric_type == 'normal':
         if address_grouping == 'single_input':
             filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 10000)
+                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 100000)
             ]
         elif address_grouping == 'multi_input':
             filtered_chunk = chunk[
-                (~chunk['user'].isin(known_users)) & (chunk['balance'] > 10000)
+                (~chunk['user'].isin(known_users)) & (chunk['balance'] > 100000)
             ]
 
         # Extract balances and calculate the total sum in a vectorized manner

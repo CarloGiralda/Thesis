@@ -61,17 +61,17 @@ def main():
     metric_type = 'only_redistribution'
     addresses = 'single_input'
     extra_fee_amount = 0
-    extra_fee_percentage = 0.001
+    extra_fee_percentage = 0.0
     redistribution_type = 'equal'
-    redistribution_amount = 'fees'
-    redistribution_minimum = 0
+    redistribution_amount = 'block_reward'
+    redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
     redistribution_user_percentage = 1.0
 
     ginis = {}
     nakamotos = {}
 
-    for i in range(1, 11, 2):
+    for i in range(0, 11):
         percentage = i / 10
 
         print('Percentage: ', percentage)
