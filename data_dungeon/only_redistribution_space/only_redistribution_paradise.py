@@ -185,7 +185,7 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
     return eligible_accounts, non_eligible_accounts
             
 def perform_redistribution(redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
-                           eligible_accounts, non_eligible_accounts):
+                           eligible_accounts, non_eligible_accounts, circular_queue_index):
     # fees payed by users
     fees = block['Fees']
     # total reward = block reward + fees
@@ -253,6 +253,21 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         redistribution_extra_fee = actual_redistribution - max_block_redistribution if actual_redistribution > max_block_redistribution else 0
 
+    elif redistribution_type == 'no_minimum_equal':
+
+        # in this case there is no limitation such as indivisible unit (as satoshi)
+        redistribution_per_user = max_redistribution / num_users if num_users > 0 else 0
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.first_list[indices] += redistribution_per_user
+                eligible_accounts.second_list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.first_list += redistribution_per_user
+                eligible_accounts.second_list += redistribution_per_user
+
+        redistribution_extra_fee = total_extra_fee
+
     elif redistribution_type == 'almost_equal':
 
         redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
@@ -269,6 +284,41 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         remaining = max_redistribution - actual_redistribution
         eligible_accounts.first_list[indices[:remaining]] += 1
         eligible_accounts.second_list[indices[:remaining]] += 1
+
+        redistribution_extra_fee = total_extra_fee
+
+    elif redistribution_type == 'circular_queue_equal':
+
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
+        actual_redistribution = redistribution_per_user * num_users
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.first_list[indices] += redistribution_per_user
+                eligible_accounts.second_list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.first_list += redistribution_per_user
+                eligible_accounts.second_list += redistribution_per_user
+
+        remaining = max_redistribution - actual_redistribution
+        new_circular_queue_index = circular_queue_index + remaining
+
+        # if the index exceeds the length of the list, then redistribute from the address corresponding to the index until the list is finished
+        # then redistribute the remaining part to the first addresses in the list
+        if new_circular_queue_index > eligible_accounts.len_first_list:
+            eligible_accounts.first_list[indices[circular_queue_index:]] += 1
+            eligible_accounts.second_list[indices[circular_queue_index:]] += 1
+
+            circular_queue_index = new_circular_queue_index % eligible_accounts.len_first_list
+            
+            eligible_accounts.first_list[indices[:circular_queue_index]] += 1
+            eligible_accounts.second_list[indices[:circular_queue_index]] += 1
+
+        else:
+            eligible_accounts.first_list[indices[circular_queue_index:new_circular_queue_index]] += 1
+            eligible_accounts.second_list[indices[circular_queue_index:new_circular_queue_index]] += 1
+
+            circular_queue_index = new_circular_queue_index
 
         redistribution_extra_fee = total_extra_fee
 
@@ -310,7 +360,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
     remaining_from_extra_fee = total_extra_fee - redistribution_extra_fee
 
-    return eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee
+    return eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
@@ -318,6 +368,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 def process_blocks(eligible_accounts, non_eligible_accounts, 
                    len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage):
     global file_queue
+
+    circular_queue_index = 0
 
     with tqdm(total=len_files, desc=f'Processing blocks') as pbar:
 
@@ -336,9 +388,9 @@ def process_blocks(eligible_accounts, non_eligible_accounts,
             # the amount sent multiplied by extra_fee_percentage
             total_extra_fee = int(extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage)
 
-            eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+            eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
                 redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee,
-                eligible_accounts, non_eligible_accounts)
+                eligible_accounts, non_eligible_accounts, circular_queue_index)
             
             eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
                 block, block_redistribution, redistribution_minimum, redistribution_maximum, redistribution_amount, remaining_from_extra_fee,
@@ -410,6 +462,10 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
                 eligible_balances[index] = int(value)
                 eligible_addresses[key] = index
 
+            if redistribution_type == 'no_minimum_equal':
+                eligible_balances = eligible_balances.astype(float)
+                redistribution_eligible_balances = redistribution_eligible_balances.astype(float)
+
             eligible_accounts = DoubleDictionaryDoubleList(eligible_addresses, eligible_balances, redistribution_eligible_balances)
             return eligible_accounts
         
@@ -427,6 +483,10 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
             for index, (key, value) in enumerate(non_eligible_accounts):
                 non_eligible_balances[index] = int(value)
                 non_eligible_addresses[key] = index
+
+            if redistribution_type == 'no_minimum_equal':
+                non_eligible_balances = non_eligible_balances.astype(float)
+                redistribution_non_eligible_balances = redistribution_non_eligible_balances.astype(float)
         
             non_eligible_accounts = DictionaryDoubleList(non_eligible_addresses, non_eligible_balances, redistribution_non_eligible_balances)
             return non_eligible_accounts

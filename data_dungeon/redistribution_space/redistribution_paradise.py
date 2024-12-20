@@ -448,7 +448,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
         with open(path_accounts, 'w+') as file:
             csv_out = csv.writer(file)
-            csv_out.writerow(['balance'])
+            csv_out.writerow(['address','balance'])
 
             eligible_addresses = eligible_accounts.dictionary
             eligible_balances = eligible_accounts.list
@@ -457,14 +457,14 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
             with tqdm(total=len(eligible_addresses), desc=f'Writing eligible accounts') as pbar:
                 for address, index in eligible_addresses.items():
                     balance = eligible_balances[index]
-                    csv_out.writerow([balance])
+                    csv_out.writerow((address, balance))
 
                     pbar.update(1)
 
             # save accounts that are not eligible
             with tqdm(total=len(non_eligible_accounts), desc=f'Writing non-eligible accounts') as pbar:
                 for key, value in non_eligible_accounts.items():
-                    csv_out.writerow([value])
+                    csv_out.writerow((key, value))
 
                     pbar.update(1)
 

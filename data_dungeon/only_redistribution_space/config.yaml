@@ -3,7 +3,7 @@ addresses:
   # [single_input, multi_input]
   # single_input means that each address is treated as a separate account
   # multi_input is based on multi-input heuristics where all addresses that belong to the set of inputs of the same transaction are classified as a single entity
-  grouping: 'multi_input'
+  grouping: 'single_input'
 
 extra_fee:
   # extra fee amount in SATs
@@ -17,7 +17,7 @@ extra_fee:
 
 redistribution:
   # type of redistribution
-  # [no_redistribution, equal, almost_equal, weight_based]
+  # [no_redistribution, equal, no_minimum_equal, almost_equal, circular_queue_equal, weight_based]
   # setting it to no_redistribution will invalidate all other parameters, although the computation time and performance will be affected
   type: 'no_redistribution'
 
