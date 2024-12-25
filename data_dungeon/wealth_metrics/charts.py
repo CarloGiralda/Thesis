@@ -23,9 +23,8 @@ def plot_gini_coefficient(gini_coefficients, gini_file):
 
     plt.figure(figsize=(10, 6))
     plt.plot(percentages, ginis)
-    plt.xlabel('Percentage')
+    plt.xlabel('Percentage of redistribution')
     plt.ylabel('Gini coefficient')
-    plt.title('Gini coefficient change over percentage of redistribution')
     plt.tight_layout()
     plt.savefig(gini_file)
 
@@ -35,9 +34,8 @@ def plot_nakamoto_coefficient(nakamoto_coefficients, nakamoto_file):
 
     plt.figure(figsize=(10, 6))
     plt.plot(percentages, nakamotos)
-    plt.xlabel('Percentage')
+    plt.xlabel('Percentage of redistribution')
     plt.ylabel('Nakamoto coefficient')
     plt.yscale('log')
-    plt.title('Nakamoto coefficient change over percentage of redistribution')
     plt.tight_layout()
     plt.savefig(nakamoto_file)

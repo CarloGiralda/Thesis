@@ -3,7 +3,7 @@ from redistribution_space.redistribution_paradise import redistribution_paradise
 from redistribution_space.multi_input_redistribution_paradise import multi_input_redistribution_paradise
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
-dir_results = './results_HDD/' # Directory where to store the results
+dir_results = './results_SSD/' # Directory where to store the results
 config_file = './data_dungeon/redistribution_space/config.yaml'
 
 def main():

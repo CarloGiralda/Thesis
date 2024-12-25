@@ -1,32 +1,9 @@
-import pandas as pd
+import operator
 import numpy as np
-from tqdm import tqdm
-from queue import Queue
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
+from database import accounts_database as ad
+from database import multi_input_accounts_database as miad
 from wealth_metrics.gini_coefficient import gini
 from wealth_metrics.nakamoto_coefficient import nakamoto
-from wealth_metrics.charts import lorenz_curve
-from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
-
-metric_type = 'normal'
-address_grouping = 'single_input'
-redistribution_type = 'no_redistribution'
-redistribution_amount = 'fees'
-percentage = 0.5
-user_percentage = 1.0
-extra_fee_amount = 0
-extra_fee_percentage = 0.0
-minimum = 1
-maximum = 1
-if metric_type == 'normal':
-    csv_file = f'./results_SSD/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
-else:
-    csv_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
-
-
-chunk_size = 1000000
-
-lorenz_curve_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/lorenz_curve_{redistribution_amount}.png'
 
 # Exchanges, ETFs, Custodial Companies addresses in the top 500 holders (and two of Satoshi's addresses)
 known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S',
@@ -54,79 +31,46 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      'bc1q7ramrn7krmgl8ja8vjm9g25a5t98l6kfyqgewe', '3L41yRzWATBFS3TSHGxFAJiTxahB94MpcQ', 'bc1q0dfgg0phamhxyntrenylv98epwn69fq9mwmaz0', 
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
-def _process_balance_chunk(chunk, known_users):
-    if metric_type == 'normal':
-        if address_grouping == 'single_input':
-            filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 100000)
-            ]
-        elif address_grouping == 'multi_input':
-            filtered_chunk = chunk[
-                (~chunk['user'].isin(known_users)) & (chunk['balance'] > 100000)
-            ]
-
-        # Extract balances and calculate the total sum in a vectorized manner
-        local_balances = filtered_chunk['balance'].tolist()
-        local_total_sum = filtered_chunk['balance'].sum()
-
-    else:
-        # Extract balances and calculate the total sum in a vectorized manner
-        local_balances = chunk['redistribution'].tolist()
-        local_total_sum = chunk['redistribution'].sum()
-
-    return local_balances, local_total_sum
+selection = 'normal'
 
 def main():
-    balances = []
-    total_sum = 0
+    minimum = 100000
+    maximum = 2100000000000000
 
-    aggregation_queue = Queue(maxsize=10)
+    if selection == 'normal':
+        conn = ad.create_connection()
 
-    known_users = set([])
-    if address_grouping == 'multi_input':
-        conn = create_connection()
-        for address in known_wallets:
-            users = retrieve_user_from_address(conn, address)
-            if len(users) != 1:
-                print('Invalid length for returned users')
-                continue
-            known_users.add(int(users[0][0]))
-            
-    def aggregate_results():
-        nonlocal total_sum
+        eligible_balances_list = []
+        for address, balance in ad.retrieve_eligible_accounts(conn, minimum, maximum):
+            if address not in known_wallets:
+                eligible_balances_list.append(balance)
 
-        while True:
-            local_variables = aggregation_queue.get()
-            if local_variables == None:
-                break
-                
-            local_balances, local_total_sum = local_variables.result()
-            balances.extend(local_balances)
-            total_sum += local_total_sum
+    elif selection == 'multi_input':
+        conn = miad.create_connection()
 
-        return balances, total_sum
-    
-    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
-        aggregator_future = [aggregator_executor.submit(aggregate_results)]
-        
-        with ProcessPoolExecutor() as processors:
-            for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading CSV in chunks'):
-                aggregation_queue.put(processors.submit(_process_balance_chunk, chunk, known_users))
-            
-            aggregation_queue.put(None)
-            
-            wait(aggregator_future)
+        eligible_accounts = miad.retrieve_eligible_accounts(conn, minimum, maximum)
 
-    balances_array = np.array(balances, dtype=np.float64)
-    balances_array_sorted = np.sort(balances_array)
+        eligible_balances_list = []
+        not_eligible_users = []
+        # create a list for the non eligible users
+        for address, user, _ in eligible_accounts:
+            if address in known_wallets:
+                not_eligible_users.append(user)
 
-    gini_coefficient = gini(balances_array_sorted, total_sum)
-    nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
+        # save only the eligible users
+        for _, user, balance in eligible_accounts:
+            if user not in not_eligible_users:
+                eligible_balances_list.append(balance)
 
-    print(f'Gini coefficient: {gini_coefficient}')
-    print(f'Nakamoto coefficient: {nakamoto_coefficient}')
+    eligible_balances = np.array(eligible_balances_list)
+    eligible_balances_sorted = np.sort(eligible_balances)
+    total_sum = np.sum(eligible_balances_sorted)
 
-    lorenz_curve(balances_array_sorted, total_sum, lorenz_curve_file)
+    gini_coefficient = gini(eligible_balances_sorted, total_sum)
+    nakamoto_coefficient = nakamoto(eligible_balances_sorted, total_sum)
+
+    print('Gini coefficient: ', gini_coefficient)
+    print('Nakamoto coefficient: ', nakamoto_coefficient)
 
 if __name__ == '__main__':
     main()
