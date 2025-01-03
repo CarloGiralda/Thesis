@@ -92,9 +92,9 @@ def main():
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'equal'
+    redistribution_type = 'circular_queue_equal'
     redistribution_amount = 'fees'
-    redistribution_minimum = 0
+    redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
     redistribution_user_percentage = 1.0
 
@@ -108,8 +108,8 @@ def main():
 
         dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
         csv_file = f'{dir_files}/accounts_{percentage}.csv'
-        gini_file = f'{dir_files}/gini_coefficient.png'
-        nakamoto_file = f'{dir_files}/nakamoto_coefficient.png'
+        gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
+        nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
         if addresses == 'single_input':
             redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)

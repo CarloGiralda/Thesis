@@ -168,7 +168,7 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
     return eligible_accounts, non_eligible_accounts
 
 def perform_redistribution(redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
-                            redistribution, eligible_accounts, non_eligible_accounts):
+                            redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index):
     # fees payed by users
     fees = block['Fees']
     # total reward = block reward + fees
@@ -234,6 +234,20 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         redistribution_extra_fee = actual_redistribution - max_block_redistribution if actual_redistribution > max_block_redistribution else 0
 
+    elif redistribution_type == 'no_minimum_equal':
+
+        # in this case there is no limitation such as indivisible unit (as satoshi)
+        redistribution_per_user = max_redistribution / num_users if num_users > 0 else 0
+        redistribution[number_of_file] = redistribution_per_user
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.list += redistribution_per_user
+
+        redistribution_extra_fee = total_extra_fee
+
     elif redistribution_type == 'almost_equal':
 
         redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
@@ -247,6 +261,41 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         remaining = max_redistribution - actual_redistribution
         eligible_accounts.list[indices[:remaining]] += 1
+
+        percentiles = [25, 50, 75]
+        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
+        redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+
+        redistribution_extra_fee = total_extra_fee
+
+    elif redistribution_type == 'circular_queue_equal':
+
+        redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
+        actual_redistribution = redistribution_per_user * num_users
+
+        if redistribution_per_user > 0:
+            if redistribution_user_percentage < 1.0:
+                eligible_accounts.list[indices] += redistribution_per_user
+            else:
+                eligible_accounts.list += redistribution_per_user
+
+        remaining = max_redistribution - actual_redistribution
+        new_circular_queue_index = circular_queue_index + remaining
+
+        # if the index exceeds the length of the list, then redistribute from the address corresponding to the index until the list is finished
+        # then redistribute the remaining part to the first addresses in the list
+        if new_circular_queue_index > eligible_accounts.len_list:
+            eligible_accounts.list[indices[circular_queue_index:]] += 1
+
+            circular_queue_index = new_circular_queue_index % eligible_accounts.len_list
+            
+            eligible_accounts.list[indices[:circular_queue_index]] += 1
+
+        else:
+            eligible_accounts.list[indices[circular_queue_index:new_circular_queue_index]] += 1
+
+            circular_queue_index = new_circular_queue_index
 
         percentiles = [25, 50, 75]
         perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
@@ -305,7 +354,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
     remaining_from_extra_fee = total_extra_fee - redistribution_extra_fee
 
-    return redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee
+    return redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index
 
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
@@ -313,7 +362,9 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 def process_blocks(eligible_accounts, non_eligible_accounts, redistribution, 
                    len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage):
     global file_queue
+
     number_of_file = 0
+    circular_queue_index = 0
 
     with tqdm(total=len_files, desc=f'Processing blocks') as pbar:
 
@@ -332,9 +383,9 @@ def process_blocks(eligible_accounts, non_eligible_accounts, redistribution,
             # the amount sent multiplied by extra_fee_percentage
             total_extra_fee = extra_fee_amount * (len(block['Transactions']) - 1) + total_extra_fee_percentage
 
-            redistribution, eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee = perform_redistribution(
+            redistribution, eligible_accounts, non_eligible_accounts, block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
                 redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee,
-                redistribution, eligible_accounts, non_eligible_accounts)
+                redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
             
             eligible_accounts, non_eligible_accounts = perform_coinbase_transaction(
                 block, block_redistribution, redistribution_minimum, redistribution_maximum, remaining_from_extra_fee,
@@ -406,13 +457,19 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
                 eligible_balances[index] = int(value)
                 eligible_addresses[key] = index
 
+            if redistribution_type == 'no_minimum_equal':
+                eligible_balances = eligible_balances.astype(float)
+
             eligible_accounts = DoubleDictionaryList(eligible_addresses, eligible_balances)
             return eligible_accounts
         
         eligible_accounts = retrieve_eligible_accounts_object(conn, redistribution_minimum, redistribution_maximum)
 
         print('Retrieving non eligible accounts from database...')
-        non_eligible_accounts = {key: int(value) for key, value in retrieve_non_eligible_accounts(conn, redistribution_minimum, redistribution_maximum)}
+        if redistribution_type == 'no_minimum_equal':
+            non_eligible_accounts = {key: value for key, value in retrieve_non_eligible_accounts(conn, redistribution_minimum, redistribution_maximum)}
+        else:
+            non_eligible_accounts = {key: int(value) for key, value in retrieve_non_eligible_accounts(conn, redistribution_minimum, redistribution_maximum)}
 
         # pre-allocate a fixed size redistribution list
         redistribution = [0] * len_files
@@ -468,10 +525,10 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
                     pbar.update(1)
 
-    plot_balance_histogram(path_accounts)
-    if redistribution_type == 'equal':
-        plot_linear_redistribution_histogram(path_redistribution)
-    elif redistribution_type == 'almost_equal':
-        plot_almost_equal_metrics(path_redistribution)
-    elif redistribution_type == 'weight_based':
-        plot_weight_based_metrics(path_redistribution)
+    # plot_balance_histogram(path_accounts)
+    # if redistribution_type == 'equal':
+    #     plot_linear_redistribution_histogram(path_redistribution)
+    # elif redistribution_type == 'almost_equal':
+    #     plot_almost_equal_metrics(path_redistribution)
+    # elif redistribution_type == 'weight_based':
+    #     plot_weight_based_metrics(path_redistribution)

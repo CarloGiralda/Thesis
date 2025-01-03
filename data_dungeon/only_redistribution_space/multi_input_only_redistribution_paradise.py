@@ -366,7 +366,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         redistribution_extra_fee = total_extra_fee
 
     # it cannot happen that an account becomes non-eligible through redistribution by having a balance lower than the minimum
-    filtered_indices = np.argwhere(eligible_accounts.list[indices] > redistribution_maximum).flatten()
+    filtered_indices = np.argwhere(eligible_accounts.first_list[indices] > redistribution_maximum).flatten()
 
     if len(filtered_indices) > 0:
         # map to original indices
@@ -384,7 +384,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 # each block is processed sequentially (and the corresponding accounts are updated)
 # furthermore, in order to reduce the number of computations, in this phase, the redistribution is computed only for the accounts that are involved in transactions
 # the redistribution to other accounts is performed afterwards
-def process_blocks(address_to_user, eligible_accounts, non_eligible_accounts, redistribution, 
+def process_blocks(address_to_user, eligible_accounts, non_eligible_accounts, 
                    len_files, redistribution_minimum, redistribution_maximum, redistribution_percentage, redistribution_type, redistribution_amount, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage):
     global file_queue
 
@@ -422,7 +422,7 @@ def process_blocks(address_to_user, eligible_accounts, non_eligible_accounts, re
     eligible_accounts.perform_addition()
     non_eligible_accounts.perform_addition()
 
-    return eligible_accounts, non_eligible_accounts, redistribution
+    return eligible_accounts, non_eligible_accounts
 
 def read_files(files, thread_number, dir_sorted_blocks):
     global file_queue
