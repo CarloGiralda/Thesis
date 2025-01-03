@@ -50,7 +50,7 @@ def perform_input_output(address, payment, input_output,
             # redistribution is assigned to non_eligible_accounts
             non_eligible_accounts.add(user, updated_balance, redistribution)
 
-    elif user in non_eligible_accounts:
+    elif non_eligible_accounts.contains_key(user):
         balance = non_eligible_accounts.get_balance(user)
 
         # compute the updated balance
@@ -562,7 +562,7 @@ def multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, red
                     pbar.update(1)
 
             non_eligible_addresses = non_eligible_accounts.dictionary
-            non_eligible_balances = eligible_accounts.first_list
+            non_eligible_balances = non_eligible_accounts.first_list
             non_eligible_redistribution = non_eligible_accounts.second_list
 
             # save accounts that are not eligible
@@ -574,4 +574,4 @@ def multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, red
 
                     pbar.update(1)
 
-    plot_balance_line(path_accounts)
+    # plot_balance_line(path_accounts)
