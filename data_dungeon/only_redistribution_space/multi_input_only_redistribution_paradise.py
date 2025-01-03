@@ -191,12 +191,12 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
 
             redistribution = int(math.floor(redistribution))
                                     
-            if eligible_accounts.contains_key(receiver):
+            if eligible_accounts.contains_key(user):
                 previous_redistribution = eligible_accounts.get_redistribution(user)
                 total_redistribution = previous_redistribution + redistribution
                 eligible_accounts.update_redistribution(user, total_redistribution)
 
-            elif non_eligible_accounts.contains_key(receiver):
+            elif non_eligible_accounts.contains_key(user):
                 previous_redistribution = non_eligible_accounts.get_redistribution(user)
                 total_redistribution = previous_redistribution + redistribution
                 non_eligible_accounts.update_redistribution(user, total_redistribution)
@@ -523,7 +523,7 @@ def multi_input_only_redistribution_paradise(dir_sorted_blocks, dir_results, red
         non_eligible_accounts, address_to_user = retrieve_non_eligible_accounts_object(conn, redistribution_minimum, redistribution_maximum, address_to_user)
 
         # set the user_index to the identifier of the user with the highest number of eligible_balances + 1
-        user_index = max(address_to_user.keys()) + 1
+        user_index = max(address_to_user.values()) + 1
 
         # initialize the lock set to make the reader threads coordinate on the order of files
         prev_height = extract_height_from_name(files[0]) - 1
