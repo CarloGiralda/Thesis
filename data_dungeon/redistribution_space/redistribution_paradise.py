@@ -7,8 +7,10 @@ import numpy as np
 import numpy_minmax
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from tqdm import tqdm
-from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_almost_equal_metrics, plot_weight_based_metrics
+from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_almost_equal_metrics, plot_weight_based_metrics, plot_stacked_histogram
 from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
+
+METRICS = False
 
 # number of readers for blocks
 num_readers = 2
@@ -219,7 +221,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
     elif redistribution_type == 'equal':
 
         redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
-        redistribution[number_of_file] = redistribution_per_user
+        if METRICS:
+            redistribution[number_of_file] = redistribution_per_user
         actual_redistribution = redistribution_per_user * num_users
 
         if redistribution_per_user > 0:
@@ -238,7 +241,8 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
         # in this case there is no limitation such as indivisible unit (as satoshi)
         redistribution_per_user = max_redistribution / num_users if num_users > 0 else 0
-        redistribution[number_of_file] = redistribution_per_user
+        if METRICS:
+            redistribution[number_of_file] = redistribution_per_user
 
         if redistribution_per_user > 0:
             if redistribution_user_percentage < 1.0:
@@ -262,10 +266,11 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         remaining = max_redistribution - actual_redistribution
         eligible_accounts.list[indices[:remaining]] += 1
 
-        percentiles = [25, 50, 75]
-        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
-        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
-        redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+        if METRICS:
+            percentiles = [25, 50, 75]
+            perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+            perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
+            redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
 
         redistribution_extra_fee = total_extra_fee
 
@@ -297,10 +302,11 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
             circular_queue_index = new_circular_queue_index
 
-        percentiles = [25, 50, 75]
-        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
-        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
-        redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+        if METRICS:
+            percentiles = [25, 50, 75]
+            perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+            perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [redistribution_per_user + 1 if idx < remaining else redistribution_per_user for idx in perc_indices]
+            redistribution[number_of_file] = [perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
 
         redistribution_extra_fee = total_extra_fee
 
@@ -319,22 +325,23 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         # because the previous operations rounded down the values, something is left
         difference = max_redistribution - np.sum(redistributed_amounts)
         if difference > 0:
-            # assign the remaining in the most equal way possible
-            remaining = distribute(difference, num_users)
-            redistributed_amounts[indices] += remaining
+            largest_indices = np.argpartition(-inverse_weights, difference)[:difference]
+            top_sorted_indices = largest_indices[np.argsort(-inverse_weights[largest_indices])]
+            redistributed_amounts[top_sorted_indices] += 1
 
-        masked_redistributed_amounts = redistributed_amounts[mask]
+        if METRICS:
+            masked_redistributed_amounts = redistributed_amounts[mask]
 
-        min_red, max_red = numpy_minmax.minmax(masked_redistributed_amounts)
+            min_red, max_red = numpy_minmax.minmax(masked_redistributed_amounts)
 
-        percentiles = [25, 50, 75]
-        perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
-        unique_indices = np.unique(perc_indices)
-        partitioned_data = np.partition(masked_redistributed_amounts, unique_indices)
-        perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [partitioned_data[idx] for idx in perc_indices]
+            percentiles = [25, 50, 75]
+            perc_indices = [int(np.ceil((p / 100) * num_users)) - 1 for p in percentiles]
+            unique_indices = np.unique(perc_indices)
+            partitioned_data = np.partition(masked_redistributed_amounts, unique_indices)
+            perc_25_redistribution, perc_50_redistribution, perc_75_redistribution = [partitioned_data[idx] for idx in perc_indices]
 
-        redistribution[number_of_file] = [max_redistribution, max_red, min_red, 
-                                          perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
+            redistribution[number_of_file] = [max_redistribution, max_red, min_red, 
+                                            perc_25_redistribution, perc_50_redistribution, perc_75_redistribution]
         
         eligible_accounts.list += redistributed_amounts
 
@@ -433,7 +440,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
     path_accounts = os.path.join(dir_results_folder, f'accounts_{redistribution_percentage}.csv')
     path_redistribution = os.path.join(dir_results_folder, f'redistribution_{redistribution_percentage}.csv')
 
-    if not os.path.exists(path_accounts) or not os.path.exists(path_redistribution):
+    if not os.path.exists(path_accounts):
 
         conn = create_connection()
 
@@ -493,15 +500,16 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
             for future in as_completed(futures_processors):
                 eligible_accounts, non_eligible_accounts, redistribution = future.result()
 
-        with open(path_redistribution, 'w+') as file:
-            csv_out = csv.writer(file)
-            csv_out.writerow(['height','redistribution'])
-            with tqdm(total=len(redistribution), desc=f'Writing redistribution per block') as pbar:
-                for index, red in enumerate(redistribution):
-                    # the first file is 856003
-                    csv_out.writerow([index + 856003, red])
+        if METRICS:
+            with open(path_redistribution, 'w+') as file:
+                csv_out = csv.writer(file)
+                csv_out.writerow(['height','redistribution'])
+                with tqdm(total=len(redistribution), desc=f'Writing redistribution per block') as pbar:
+                    for index, red in enumerate(redistribution):
+                        # the first file is 856003
+                        csv_out.writerow([index + 856003, red])
 
-                    pbar.update(1)
+                        pbar.update(1)
 
         with open(path_accounts, 'w+') as file:
             csv_out = csv.writer(file)
@@ -526,9 +534,10 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
                     pbar.update(1)
 
     # plot_balance_histogram(path_accounts)
-    # if redistribution_type == 'equal':
-    #     plot_linear_redistribution_histogram(path_redistribution)
-    # elif redistribution_type == 'almost_equal':
-    #     plot_almost_equal_metrics(path_redistribution)
-    # elif redistribution_type == 'weight_based':
-    #     plot_weight_based_metrics(path_redistribution)
+    if METRICS:
+        if redistribution_type == 'equal':
+            plot_linear_redistribution_histogram(path_redistribution)
+        elif redistribution_type == 'almost_equal':
+            plot_almost_equal_metrics(path_redistribution)
+        elif redistribution_type == 'weight_based':
+            plot_weight_based_metrics(path_redistribution)

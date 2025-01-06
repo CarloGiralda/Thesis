@@ -228,6 +228,7 @@ def test_perform_redistribution():
     redistribution_percentage = 0.5
     redistribution_user_percentage = 1.0
     total_extra_fee = 0
+    circular_queue_index = 0
 
     redistribution_type = 'equal'
     redistribution_amount = 'fees'
@@ -237,11 +238,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 300 and eligible_accounts.get_balance('bc13') == 225 and non_eligible_accounts['bc14'] == 520 and ratio == 0.88 and redistribution == [200]
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 300 and eligible_accounts.get_balance('bc13') == 225 and non_eligible_accounts['bc14'] == 520 and (5000 - max_block_redistribution)/5000 == 0.88
     if condition:
         print('Test passed: simple equal redistribution')
     else:
@@ -271,11 +272,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and non_eligible_accounts['bc13'] == 1925 and ratio == 0.62 and redistribution == [1900]
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and non_eligible_accounts['bc13'] == 1925 and (5000 - max_block_redistribution)/5000 == 0.62
     if condition:
         print('Test passed: equal redistribution with percentage of users')
     else:
@@ -305,11 +306,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts) == 5 and non_eligible_accounts['bc12'] == 1357 and non_eligible_accounts['bc13'] == 1282 and ratio == 0.5 and redistribution == [1257]
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts) == 5 and non_eligible_accounts['bc12'] == 1357 and non_eligible_accounts['bc13'] == 1282 and (5000 - max_block_redistribution)/5000 == 0.5
     if condition:
         print('Test passed: equal redistribution with percentage of users and an extra fee')
     else:
@@ -339,11 +340,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 571 and non_eligible_accounts['bc13'] == 1907 and eligible_accounts.get_balance('bc14') == 467 and ratio == 0.5 and redistribution[0][1] == 1882
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 570 and non_eligible_accounts['bc13'] == 1908 and eligible_accounts.get_balance('bc14') == 467 and (5000 - max_block_redistribution)/5000 == 0.5
     if condition:
         print('Test passed: simple weight based redistribution')
     else:
@@ -373,11 +374,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 1000 and non_eligible_accounts['bc13'] == 3625 and eligible_accounts.get_balance('bc14') == 320 and ratio == 0.1 and redistribution[0][1] == 3600
+    condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts) == 4 and eligible_accounts.get_balance('bc12') == 1000 and non_eligible_accounts['bc13'] == 3625 and eligible_accounts.get_balance('bc14') == 320 and (5000 - max_block_redistribution)/5000 == 0.1
     if condition:
         print('Test passed: weight based redistribution with percentage on users')
     else:
@@ -407,11 +408,11 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    redistribution, eligible_accounts, non_eligible_accounts, ratio = perform_redistribution(
+    redistribution, eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
         redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, number_of_file, total_extra_fee, 
-        redistribution, eligible_accounts, non_eligible_accounts)
+        redistribution, eligible_accounts, non_eligible_accounts, circular_queue_index)
 
-    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts) == 5 and non_eligible_accounts['bc12'] == 1101 and non_eligible_accounts['bc13'] == 4027 and eligible_accounts.get_balance('bc14') == 320 and ratio == 0.1 and redistribution[0][1] == 4002
+    condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts) == 5 and non_eligible_accounts['bc12'] == 1100 and non_eligible_accounts['bc13'] == 4028 and eligible_accounts.get_balance('bc14') == 320 and (5000 - max_block_redistribution)/5000 == 0.1
     if condition:
         print('Test passed: weight based redistribution with percentage on users and an extra fee')
     else:

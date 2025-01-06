@@ -363,3 +363,31 @@ def plot_almost_equal_metrics(csv_file, chunk_size=1000000, groups=1000):
     ax.set_xlim(min_value, max_value * 1.5)
 
     plt.show()
+
+def plot_stacked_histogram(csv_file):
+    df = pd.read_csv(csv_file)
+    rows = df.values.tolist()
+    accounts_under_threshold = rows[0]
+    accounts_above_threshold = rows[1]
+
+    # Bin settings
+    bins = np.linspace(-4, 4, 30)
+
+    # Create the histograms
+    hist1, bins1 = np.histogram(accounts_under_threshold, bins=bins)
+    hist2, bins2 = np.histogram(accounts_above_threshold, bins=bins)
+
+    # Calculate the positions for stacked bars
+    bottom1 = np.zeros_like(hist1)
+    bottom2 = hist1
+
+    # Plot the histograms
+    plt.bar(bins[:-1], hist1, width=np.diff(bins), align="edge", label="Data 1")
+    plt.bar(bins[:-1], hist2, width=np.diff(bins), align="edge", bottom=bottom2, label="Data 2")
+
+    # Customize the plot
+    plt.title("Stacked Histogram")
+    plt.xlabel("Value")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.show()

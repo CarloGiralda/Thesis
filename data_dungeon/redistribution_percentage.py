@@ -92,7 +92,7 @@ def main():
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'circular_queue_equal'
+    redistribution_type = 'weight_based'
     redistribution_amount = 'fees'
     redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
