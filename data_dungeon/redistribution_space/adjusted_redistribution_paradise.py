@@ -29,14 +29,14 @@ def perform_input_output(address, payment, input_output,
         # compute the updated balance and assign it to the corresponding address
         if input_output == 0:
             updated_balance = balance - payment
-            # if this condition is verified, then it means that the user spent all its BTCs
+            # if this condition is verified, then it means that the user spent almost all its BTCs
             # it is almost sure that it will not use this address anymore
             # so we assume that it would transfer the redistribution as well
-            if updated_balance == redistribution:
+            if updated_balance < redistribution:
                 # set it to redistribution, so the whole redistribution is going to be passed to the next address(es)
                 additional_from_redistribution = redistribution
-                # set the updated_balance to 0 because also the redistribution has been spent
-                updated_balance = 0
+                # decrease the updated_balance because we consider as the redistribution has been spent
+                updated_balance -= redistribution
                 # set the redistribution to 0 because all the redistribution received from this address is being passed to next one(s)
                 eligible_accounts.update_redistribution(address, 0)
         else:
@@ -62,14 +62,14 @@ def perform_input_output(address, payment, input_output,
         # compute the updated balance and assign it to the corresponding address
         if input_output == 0:
             updated_balance = balance - payment
-            # if this condition is verified, then it means that the user spent all its BTCs
+            # if this condition is verified, then it means that the user spent almost all its BTCs
             # it is almost sure that it will not use this address anymore
             # so we assume that it would transfer the redistribution as well
-            if updated_balance == redistribution:
+            if updated_balance < redistribution:
                 # set it to redistribution, so the whole redistribution is going to be passed to the next address(es)
                 additional_from_redistribution = redistribution
-                # set the updated_balance to 0 because also the redistribution has been spent
-                updated_balance = 0
+                # decrease the updated_balance because we consider as the redistribution has been spent
+                updated_balance -= redistribution
                 # set the redistribution to 0 because all the redistribution received from this address is being passed to next one(s)
                 non_eligible_accounts.update_redistribution(address, 0)
         else:
@@ -143,7 +143,8 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
         
         num_outputs = len(transaction['Outputs'])
         extra_fee_per_output = distribute(extra_fee_amount, num_outputs)
-        extra_redistribution = distribute(additional_from_redistributions, num_outputs)
+        extra_redistribution = [0] * num_outputs
+        extra_redistribution[-1] = additional_from_redistributions
 
         for output_index, output in enumerate(transaction['Outputs']):
             receiver = output['Receiver']

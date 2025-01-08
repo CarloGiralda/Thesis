@@ -44,32 +44,45 @@ def _process_balance_chunk(chunk):
     filtered_chunk = chunk[
                 (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 100000)
             ]
+    less_filtered_chunk = chunk[
+                (~chunk['address'].isin(known_wallets))
+            ]
     
     # Extract balances and calculate the total sum in a vectorized manner
     local_balances = filtered_chunk['balance'].tolist()
     local_total_sum = filtered_chunk['balance'].sum()
 
-    return local_balances, local_total_sum
+    local_less_balances = less_filtered_chunk['balance'].tolist()
+    local_less_total_sum = less_filtered_chunk['balance'].sum()
+
+    return local_balances, local_total_sum, local_less_balances, local_less_total_sum
 
 def read_csv_file(csv_file, chunk_size=1000000):
     balances = []
     total_sum = 0
+    less_balances = []
+    less_total_sum = 0
 
     aggregation_queue = Queue(maxsize=10)
             
     def aggregate_results():
         nonlocal total_sum
+        nonlocal less_total_sum
 
         while True:
             local_variables = aggregation_queue.get()
             if local_variables == None:
                 break
                 
-            local_balances, local_total_sum = local_variables.result()
+            local_balances, local_total_sum, local_less_balances, local_less_total_sum = local_variables.result()
+            
             balances.extend(local_balances)
             total_sum += local_total_sum
 
-        return balances, total_sum
+            less_balances.extend(local_less_balances)
+            less_total_sum += local_less_total_sum
+
+        return balances, total_sum, less_balances, less_total_sum
     
     with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
         aggregator_future = [aggregator_executor.submit(aggregate_results)]
@@ -84,8 +97,10 @@ def read_csv_file(csv_file, chunk_size=1000000):
 
     balances_array = np.array(balances, dtype=np.float64)
     balances_array_sorted = np.sort(balances_array)
+    less_balances_array = np.array(less_balances, dtype=np.float64)
+    less_balances_array_sorted = np.sort(less_balances_array)
 
-    return balances_array_sorted, total_sum
+    return balances_array_sorted, total_sum, less_balances_array_sorted, less_total_sum
 
 def main():
     metric_type = 'normal'
@@ -101,29 +116,46 @@ def main():
     ginis = {}
     nakamotos = {}
 
+    ginis_less = {}
+    nakamotos_less = {}
+
+    dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
+
+    gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
+    nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
+
+    gini_all_file = f'{dir_files}/total_gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
+    nakamoto_all_file = f'{dir_files}/total_nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
+
     for i in range(0, 11):
         percentage = i / 10
 
         print('Percentage: ', percentage)
 
-        dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
         csv_file = f'{dir_files}/accounts_{percentage}.csv'
-        gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
-        nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
         if addresses == 'single_input':
             redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         elif addresses == 'multi_input':
             multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         
-        balances_array_sorted, total_sum = read_csv_file(csv_file)
+        balances_array_sorted, total_sum, less_balances_array_sorted, less_total_sum = read_csv_file(csv_file)
+        
         gini_coefficient = gini(balances_array_sorted, total_sum)
         ginis[percentage] = gini_coefficient
         nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
         nakamotos[percentage] = nakamoto_coefficient
+
+        gini_coefficient = gini(less_balances_array_sorted, less_total_sum)
+        ginis_less[percentage] = gini_coefficient
+        nakamoto_coefficient = nakamoto(less_balances_array_sorted, less_total_sum)
+        nakamotos_less[percentage] = nakamoto_coefficient
     
     plot_gini_coefficient(ginis, gini_file)
     plot_nakamoto_coefficient(nakamotos, nakamoto_file)
+
+    plot_gini_coefficient(ginis_less, gini_all_file)
+    plot_nakamoto_coefficient(nakamotos_less, nakamoto_all_file)
 
 if __name__ == '__main__':
     main()
