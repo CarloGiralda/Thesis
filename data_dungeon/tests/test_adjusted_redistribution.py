@@ -17,16 +17,15 @@ def test_perform_input_output():
     redistribution_maximum = 500
     extra_fee_per_output = 0
     extra_fee_percentage_per_output = 0
-    extra_redistribution = 0
 
     address = 'bc12'
     payment = 10
     input_output = 0
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
     
-    if eligible_accounts.first_list[0] == 90 and additional_from_redistribution == 0:
+    if eligible_accounts.first_list[0] == 90 and extra_from_redistribution == 0:
         print('Test passed: simulate an input')
     else:
         print('Test failed: simulate an input')
@@ -36,10 +35,10 @@ def test_perform_input_output():
     payment = 10
     input_output = 1
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
 
-    if eligible_accounts.first_list[0] == 100 and additional_from_redistribution == 0:
+    if eligible_accounts.first_list[0] == 100 and extra_from_redistribution == 0:
         print('Test passed: simulate an output')
     else:
         print('Test failed: simulate an output')
@@ -49,8 +48,8 @@ def test_perform_input_output():
     payment = 10
     input_output = 1
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
     
     if eligible_accounts.contains_key(address) and eligible_accounts.get_balance(address) == 10:
         print('Test passed: add address to eligible')
@@ -62,10 +61,10 @@ def test_perform_input_output():
     payment = 100
     input_output = 0
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
     
-    if eligible_accounts.contains_key(address) and not non_eligible_accounts.contains_key(address) and eligible_accounts.get_balance(address) == 401:
+    if eligible_accounts.contains_key(address) and not non_eligible_accounts.contains_key(address) and eligible_accounts.get_balance(address) == 401 and extra_from_redistribution == 0:
         print('Test passed: address from non eligible to eligible')
     else:
         print('Test passed: address from non eligible to eligible')
@@ -75,10 +74,10 @@ def test_perform_input_output():
     payment = 20
     input_output = 0
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
     
-    if not eligible_accounts.contains_key(address) and non_eligible_accounts.contains_key(address) and non_eligible_accounts.get_balance(address) == 5:
+    if not eligible_accounts.contains_key(address) and non_eligible_accounts.contains_key(address) and non_eligible_accounts.get_balance(address) == 4 and extra_from_redistribution == 1:
         print('Test passed: address from eligible to non eligible')
     else:
         print('Test passed: address from eligible to non eligible')
@@ -88,8 +87,8 @@ def test_perform_input_output():
     payment = 300
     input_output = 1
 
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
+    eligible_accounts, non_eligible_accounts, extra_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
+                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output)
     
     if not non_eligible_accounts.contains_key(address) and eligible_accounts.get_balance(address) == 300 and eligible_accounts.dictionary[address] == 1:
         print('Test passed: replace unused index')
@@ -99,44 +98,15 @@ def test_perform_input_output():
 
     eligible_accounts.perform_addition()
 
-    address = 'bc13'
-    payment = 4
-    input_output = 0
-
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
-    
-    if non_eligible_accounts.contains_key(address) and non_eligible_accounts.get_balance(address) == 0 and additional_from_redistribution == 1:
-        print('Test passed: force redistribution sending if the balance is being emptied')
-    else:
-        print('Test passed: force redistribution sending if the balance is being emptied')
-        return
-
-    address = 'bc19'
-    payment = 10
-    input_output = 1
-    extra_redistribution = 10
-
-    eligible_accounts, non_eligible_accounts, additional_from_redistribution = perform_input_output(address, payment, input_output, eligible_accounts, non_eligible_accounts,
-                         redistribution_minimum, redistribution_maximum, extra_fee_per_output, extra_fee_percentage_per_output, extra_redistribution)
-    
-    if eligible_accounts.contains_key(address) and eligible_accounts.get_balance(address) == 320 and eligible_accounts.get_redistribution(address) == 10:
-        print('Test passed: redistribution sending')
-    else:
-        print('Test passed: redistribution sending')
-        return
-
-    eligible_accounts.perform_addition()
-
     print('Final:')
     expected_dict = {'bc12': 0, 'bc14': 2, 'bc18': 3, 'bc15': 4, 'bc19': 1}
-    expected_list = np.array([100, 320, 320, 10, 401])
-    expected_second_list = np.array([0, 10, 0, 0, 0])
+    expected_list = np.array([100, 300, 320, 10, 401])
+    expected_second_list = np.array([0, 0, 0, 0, 0])
     print(f'- Eligible accounts: {eligible_accounts.dictionary}, {eligible_accounts.first_list}, {eligible_accounts.second_list}')
     print(f'- Expected eligible accounts: {expected_dict}, {expected_list}, {expected_second_list}')
     expected_dict = {'bc16': 1, 'bc17': 2, 'bc13': 0}
-    expected_list = np.array([0, 750, 1000])
-    expected_second_list = np.array([1, 0, 0])
+    expected_list = np.array([4, 750, 1000])
+    expected_second_list = np.array([0, 0, 0])
     print(f'- Non eligible accounts: {non_eligible_accounts.dictionary}, {non_eligible_accounts.first_list}, {non_eligible_accounts.second_list}')
     print(f'- Expected non eligible accounts: {expected_dict}, {expected_list}, {expected_second_list}')
 
@@ -170,7 +140,7 @@ def test_perform_block_transactions():
                      ]}
     
     # Test for simple block execution
-    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
+    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage, _ = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
                                redistribution_minimum, redistribution_maximum, block, extra_fee_per_output, extra_fee_percentage_per_output)
 
     condition = total_extra_fee_percentage == 0.0 and eligible_accounts.get_balance('bc17') == 150
@@ -207,7 +177,7 @@ def test_perform_block_transactions():
 
     extra_fee_per_output = 10
 
-    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
+    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage, _ = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
                                redistribution_minimum, redistribution_maximum, block, extra_fee_per_output, extra_fee_percentage_per_output)
     
     condition = eligible_accounts.get_balance('bc17') == 140 and non_eligible_accounts.get_balance('bc13') == 520
@@ -245,7 +215,7 @@ def test_perform_block_transactions():
     extra_fee_per_output = 0
     extra_fee_percentage_per_output = 0.1
 
-    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
+    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage, _ = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
                                redistribution_minimum, redistribution_maximum, block, extra_fee_per_output, extra_fee_percentage_per_output)
     
     condition = eligible_accounts.get_balance('bc17') == 135 and eligible_accounts.get_balance('bc13') == 475
@@ -295,10 +265,10 @@ def test_perform_block_transactions():
                      }
                      ]}
 
-    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
+    eligible_accounts, non_eligible_accounts, total_extra_fee_percentage, _ = perform_block_transactions(eligible_accounts, non_eligible_accounts, 
                                redistribution_minimum, redistribution_maximum, block, extra_fee_per_output, extra_fee_percentage_per_output)
     
-    condition = eligible_accounts.get_balance('bc17') == 155 and eligible_accounts.get_balance('bc13') == 500 and eligible_accounts.get_redistribution('bc13') == 0
+    condition = eligible_accounts.get_balance('bc17') == 150 and eligible_accounts.get_balance('bc13') == 500 and eligible_accounts.get_redistribution('bc13') == 0
     if condition:
         print('Test passed: block execution with redistribution passed')
     else:
@@ -310,13 +280,13 @@ def test_perform_block_transactions():
 
     print('Post:')
     expected_dict = {'bc12': 0, 'bc14': 2, 'bc17': 1, 'bc13': 3}
-    expected_list = np.array([100, 155, 320, 500])
-    expected_second_list = np.array([0, 5, 0, 0])
+    expected_list = np.array([100, 150, 320, 500])
+    expected_second_list = np.array([0, 0, 0, 0])
     print(f'- Eligible accounts: {eligible_accounts.dictionary}, {eligible_accounts.first_list}, {eligible_accounts.second_list}')
     print(f'- Expected eligible accounts: {expected_dict}, {expected_list}, {expected_second_list}')
     expected_dict = {'bc15': 0, 'bc16': 1}
-    expected_list = np.array([501, 1250, 1155, 0])
-    expected_second_list = np.array([0, 0, 5, 0])
+    expected_list = np.array([501, 1250, 1150, 0])
+    expected_second_list = np.array([0, 0, 0, 0])
     print(f'- Non eligible accounts: {non_eligible_accounts.dictionary}, {non_eligible_accounts.first_list}, {non_eligible_accounts.second_list}')
     print(f'- Expected non eligible accounts: {expected_dict}, {expected_list}, {expected_second_list}')
 
@@ -335,7 +305,7 @@ def test_perform_redistribution():
     redistribution_maximum = 500
     redistribution_percentage = 0.5
     redistribution_user_percentage = 1.0
-    total_extra_fee = 0
+    total_extra = 0
     circular_queue_index = 0
 
     redistribution_type = 'equal'
@@ -346,8 +316,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_balance('bc12') == 300 and eligible_accounts.get_balance('bc13') == 225 and non_eligible_accounts.get_balance('bc14') == 520 and (5000 - max_block_redistribution)/5000 == 0.88
@@ -371,7 +341,7 @@ def test_perform_redistribution():
     redistribution_maximum = 500
     redistribution_percentage = 0.5
     redistribution_user_percentage = 0.5
-    total_extra_fee = 0
+    total_extra = 0
 
     redistribution_type = 'equal'
     redistribution_amount = 'block_reward'
@@ -381,8 +351,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and non_eligible_accounts.get_balance('bc13') == 1925 and (5000 - max_block_redistribution)/5000 == 0.62
@@ -406,7 +376,7 @@ def test_perform_redistribution():
     redistribution_maximum = 500
     redistribution_percentage = 0.5
     redistribution_user_percentage = 0.75
-    total_extra_fee = 15
+    total_extra = 15
 
     redistribution_type = 'equal'
     redistribution_amount = 'total_reward'
@@ -416,8 +386,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_balance('bc12') == 1357 and non_eligible_accounts.get_balance('bc13') == 1282 and (5000 - max_block_redistribution)/5000 == 0.5
@@ -441,7 +411,7 @@ def test_perform_redistribution():
     redistribution_maximum = 1000
     redistribution_percentage = 0.5
     redistribution_user_percentage = 1.0
-    total_extra_fee = 0
+    total_extra = 0
 
     redistribution_type = 'weight_based'
     redistribution_amount = 'total_reward'
@@ -451,8 +421,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_balance('bc12') == 570 and non_eligible_accounts.get_balance('bc13') == 1908 and eligible_accounts.get_balance('bc14') == 467 and (5000 - max_block_redistribution)/5000 == 0.5
@@ -476,7 +446,7 @@ def test_perform_redistribution():
     redistribution_maximum = 1000
     redistribution_percentage = 0.9
     redistribution_user_percentage = 0.75
-    total_extra_fee = 0
+    total_extra = 0
 
     redistribution_type = 'weight_based'
     redistribution_amount = 'total_reward'
@@ -486,8 +456,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 2 and len(non_eligible_accounts.dictionary) == 4 and eligible_accounts.get_balance('bc12') == 1000 and non_eligible_accounts.get_balance('bc13') == 3625 and eligible_accounts.get_balance('bc14') == 320 and (5000 - max_block_redistribution)/5000 == 0.1
@@ -511,7 +481,7 @@ def test_perform_redistribution():
     redistribution_maximum = 1000
     redistribution_percentage = 0.9
     redistribution_user_percentage = 0.75
-    total_extra_fee = 503
+    total_extra = 503
 
     redistribution_type = 'weight_based'
     redistribution_amount = 'total_reward'
@@ -521,8 +491,8 @@ def test_perform_redistribution():
              'Reward': 5000, 'Fees': 1200
     }
 
-    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra_fee, circular_queue_index = perform_redistribution(
-        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra_fee, 
+    eligible_accounts, non_eligible_accounts, max_block_redistribution, remaining_from_extra, circular_queue_index = perform_redistribution(
+        redistribution_type, redistribution_amount, redistribution_maximum, redistribution_percentage, redistribution_user_percentage, block, total_extra, 
         eligible_accounts, non_eligible_accounts, circular_queue_index)
 
     condition = len(eligible_accounts.dictionary) == 1 and len(non_eligible_accounts.dictionary) == 5 and non_eligible_accounts.get_balance('bc12') == 1100 and non_eligible_accounts.get_balance('bc13') == 4028 and eligible_accounts.get_balance('bc14') == 320 and (5000 - max_block_redistribution)/5000 == 0.1

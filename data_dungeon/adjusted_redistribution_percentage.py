@@ -41,7 +41,7 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
 
 def _process_balance_chunk(chunk):
     filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 100000)
+                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
             ]
     
     # Extract balances and calculate the total sum in a vectorized manner

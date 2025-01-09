@@ -8,25 +8,19 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import lorenz_curve
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
-metric_type = 'normal'
+metric_type = 'adjusted_normal'
 address_grouping = 'single_input'
-redistribution_type = 'no_redistribution'
+redistribution_type = 'circular_queue_equal'
 redistribution_amount = 'fees'
-percentage = 0.5
+percentage = 1.0
 user_percentage = 1.0
 extra_fee_amount = 0
 extra_fee_percentage = 0.0
-minimum = 1
-maximum = 1
-if metric_type == 'normal':
-    csv_file = f'./results_SSD/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
-else:
-    csv_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
-
+minimum = 100000
+maximum = 2100000000000000
+csv_file = f'./result/WorkstationResults/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
 
 chunk_size = 1000000
-
-lorenz_curve_file = f'./results_HDD/{metric_type}/{address_grouping}/{redistribution_type}/{percentage}_{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/lorenz_curve_{redistribution_amount}.png'
 
 # Exchanges, ETFs, Custodial Companies addresses in the top 500 holders (and two of Satoshi's addresses)
 known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S',
@@ -55,14 +49,14 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
 def _process_balance_chunk(chunk, known_users):
-    if metric_type == 'normal':
+    if metric_type == 'normal' or metric_type == 'adjusted_normal':
         if address_grouping == 'single_input':
             filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] > 100000)
+                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
             ]
         elif address_grouping == 'multi_input':
             filtered_chunk = chunk[
-                (~chunk['user'].isin(known_users)) & (chunk['balance'] > 100000)
+                (~chunk['user'].isin(known_users)) & (chunk['balance'] >= 100000)
             ]
 
         # Extract balances and calculate the total sum in a vectorized manner
@@ -125,8 +119,6 @@ def main():
 
     print(f'Gini coefficient: {gini_coefficient}')
     print(f'Nakamoto coefficient: {nakamoto_coefficient}')
-
-    lorenz_curve(balances_array_sorted, total_sum, lorenz_curve_file)
 
 if __name__ == '__main__':
     main()
