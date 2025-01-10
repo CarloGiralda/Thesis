@@ -10,17 +10,19 @@ from database.multi_input_accounts_database import create_connection, retrieve_u
 
 metric_type = 'adjusted_normal'
 address_grouping = 'single_input'
-redistribution_type = 'circular_queue_equal'
+redistribution_type = 'no_redistribution'
 redistribution_amount = 'fees'
-percentage = 1.0
+percentage = 0.0
 user_percentage = 1.0
 extra_fee_amount = 0
 extra_fee_percentage = 0.0
 minimum = 100000
 maximum = 2100000000000000
-csv_file = f'./result/WorkstationResults/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv'
 
-chunk_size = 1000000
+directory = '/home/carlo/HDD/Shared'
+csv_file = f'{directory}/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv' if redistribution_type != 'no_redistribution' else f'{directory}/{metric_type}/{address_grouping}/accounts_no_redistribution.csv'
+
+chunk_size = 10000000
 
 # Exchanges, ETFs, Custodial Companies addresses in the top 500 holders (and two of Satoshi's addresses)
 known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S',
@@ -49,24 +51,18 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
 def _process_balance_chunk(chunk, known_users):
-    if metric_type == 'normal' or metric_type == 'adjusted_normal':
-        if address_grouping == 'single_input':
-            filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
-            ]
-        elif address_grouping == 'multi_input':
-            filtered_chunk = chunk[
-                (~chunk['user'].isin(known_users)) & (chunk['balance'] >= 100000)
-            ]
+    if address_grouping == 'single_input':
+        filtered_chunk = chunk[
+            (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
+        ]
+    elif address_grouping == 'multi_input':
+        filtered_chunk = chunk[
+            (~chunk['user'].isin(known_users)) & (chunk['balance'] >= 100000)
+        ]
 
-        # Extract balances and calculate the total sum in a vectorized manner
-        local_balances = filtered_chunk['balance'].tolist()
-        local_total_sum = filtered_chunk['balance'].sum()
-
-    else:
-        # Extract balances and calculate the total sum in a vectorized manner
-        local_balances = chunk['redistribution'].tolist()
-        local_total_sum = chunk['redistribution'].sum()
+    # Extract balances and calculate the total sum in a vectorized manner
+    local_balances = filtered_chunk['balance'].tolist()
+    local_total_sum = filtered_chunk['balance'].sum()
 
     return local_balances, local_total_sum
 

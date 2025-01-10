@@ -30,7 +30,7 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      'bc1q7ramrn7krmgl8ja8vjm9g25a5t98l6kfyqgewe', '3L41yRzWATBFS3TSHGxFAJiTxahB94MpcQ', 'bc1q0dfgg0phamhxyntrenylv98epwn69fq9mwmaz0', 
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
-def _process_balance_chunk(chunk, percentage, no_redistribution_addresses):
+def _process_balance_chunk(chunk):
     # save each chunk by selecting only addresses that satisfy the assumptions
     filtered_chunk = chunk[
             (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
@@ -39,54 +39,36 @@ def _process_balance_chunk(chunk, percentage, no_redistribution_addresses):
     # Extract balances and calculate the total sum in a vectorized manner
     chunk_balances = filtered_chunk['balance'].tolist()
     chunk_total_sum = filtered_chunk['balance'].sum()
-    
-    # save each chunk by selecting the addresses that were used in the no_redistribution (0.0 redistribution) Gini calculation
-    if percentage == 0.0:
-        chunk_no_redistribution_balances = chunk_balances
-        chunk_no_redistribution_total_sum = chunk_total_sum
-    else:
-        same_chunk = chunk[
-            (chunk['address'].isin(no_redistribution_addresses))
-        ]
 
-        chunk_no_redistribution_balances = same_chunk['balance'].tolist()
-        chunk_no_redistribution_total_sum = same_chunk['balance'].sum()
+    return chunk_balances, chunk_total_sum
 
-    return chunk_balances, chunk_total_sum, chunk_no_redistribution_balances, chunk_no_redistribution_total_sum
-
-def read_csv_file(csv_file, percentage, no_redistribution_addresses ,chunk_size=10000000):
+def read_csv_file(csv_file, percentage ,chunk_size=10000000):
     balances = []
     total_sum = 0
-    no_redistribution_balances = []
-    no_redistribution_total_sum = 0
 
     aggregation_queue = Queue(maxsize=10)
 
     def aggregate_results():
         nonlocal total_sum
-        nonlocal no_redistribution_total_sum
 
         while True:
             local_variables = aggregation_queue.get()
             if local_variables == None:
                 break
                 
-            chunk_balances, chunk_total_sum, chunk_no_redistribution_balances, chunk_no_redistribution_total_sum = local_variables.result()
+            chunk_balances, chunk_total_sum = local_variables.result()
             
             balances.extend(chunk_balances)
             total_sum += chunk_total_sum
 
-            no_redistribution_balances.extend(chunk_no_redistribution_balances)
-            no_redistribution_total_sum += chunk_no_redistribution_total_sum
-
-        return balances, total_sum, no_redistribution_balances, no_redistribution_total_sum
+        return balances, total_sum
     
     with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
         aggregator_future = [aggregator_executor.submit(aggregate_results)]
         
         with ProcessPoolExecutor() as processors:
             for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc=f'Reading accounts_{percentage} file in chunks'):
-                aggregation_queue.put(processors.submit(_process_balance_chunk, chunk, percentage, no_redistribution_addresses))
+                aggregation_queue.put(processors.submit(_process_balance_chunk, chunk))
             
             aggregation_queue.put(None)
             
@@ -94,22 +76,5 @@ def read_csv_file(csv_file, percentage, no_redistribution_addresses ,chunk_size=
 
     balances_array = np.array(balances, dtype=np.float64)
     balances_array_sorted = np.sort(balances_array)
-    no_redistribution_balances_array = np.array(no_redistribution_balances, dtype=np.float64)
-    no_redistribution_balances_array_sorted = np.sort(no_redistribution_balances_array)
 
-    return balances_array_sorted, total_sum, no_redistribution_balances_array_sorted, no_redistribution_total_sum
-
-def read_no_redistribution_file(csv_file, chunk_size=1000000):
-    addresses = []
-
-    for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading no redistribution file in chunks'):
-        filtered_chunk = chunk[
-            (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
-        ]
-        
-        # Extract balances and calculate the total sum in a vectorized manner
-        addresses.extend(filtered_chunk['address'].tolist())
-
-    addresses = set(addresses)
-
-    return addresses
+    return balances_array_sorted, total_sum
