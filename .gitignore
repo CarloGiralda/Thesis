@@ -3,5 +3,6 @@ result/
 results_HDD/
 results_SSD/
 tests.py
+miner.py
 compare_files.py
 __pycache__/

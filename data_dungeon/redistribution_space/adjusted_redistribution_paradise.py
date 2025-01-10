@@ -235,12 +235,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
 
     indices = np.flatnonzero(mask)
 
-    if redistribution_type == 'no_redistribution':
-
-        max_block_redistribution = 0
-        redistribution_extra = 0
-    
-    elif redistribution_type == 'equal':
+    if redistribution_type == 'equal':
 
         redistribution_per_user = max_redistribution // num_users if num_users > 0 else 0
         actual_redistribution = redistribution_per_user * num_users
