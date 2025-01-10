@@ -40,74 +40,60 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      'bc1q7ramrn7krmgl8ja8vjm9g25a5t98l6kfyqgewe', '3L41yRzWATBFS3TSHGxFAJiTxahB94MpcQ', 'bc1q0dfgg0phamhxyntrenylv98epwn69fq9mwmaz0', 
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
-def _process_balance_chunk(chunk):
-    filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
-            ]
-    less_filtered_chunk = chunk[
-                (~chunk['address'].isin(known_wallets))
-            ]
-    
-    # Extract balances and calculate the total sum in a vectorized manner
-    local_balances = filtered_chunk['balance'].tolist()
-    local_total_sum = filtered_chunk['balance'].sum()
+no_redistribution_addresses = []
 
-    local_less_balances = less_filtered_chunk['balance'].tolist()
-    local_less_total_sum = less_filtered_chunk['balance'].sum()
-
-    return local_balances, local_total_sum, local_less_balances, local_less_total_sum
-
-def read_csv_file(csv_file, chunk_size=1000000):
+def read_csv_file(csv_file, percentage, chunk_size=1000000):
     balances = []
     total_sum = 0
-    less_balances = []
-    less_total_sum = 0
+    no_redistribution_balances = []
+    no_redistribution_total_sum = 0
 
-    aggregation_queue = Queue(maxsize=10)
+    if percentage == 0.0:
+        global no_redistribution_addresses
             
-    def aggregate_results():
-        nonlocal total_sum
-        nonlocal less_total_sum
-
-        while True:
-            local_variables = aggregation_queue.get()
-            if local_variables == None:
-                break
-                
-            local_balances, local_total_sum, local_less_balances, local_less_total_sum = local_variables.result()
-            
-            balances.extend(local_balances)
-            total_sum += local_total_sum
-
-            less_balances.extend(local_less_balances)
-            less_total_sum += local_less_total_sum
-
-        return balances, total_sum, less_balances, less_total_sum
-    
-    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
-        aggregator_future = [aggregator_executor.submit(aggregate_results)]
+    for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading CSV in chunks'):
+        # save each chunk by selecting only addresses that satisfy the assumptions
+        filtered_chunk = chunk[
+                (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
+            ]
         
-        with ProcessPoolExecutor() as processors:
-            for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc='Reading CSV in chunks'):
-                aggregation_queue.put(processors.submit(_process_balance_chunk, chunk))
-            
-            aggregation_queue.put(None)
-            
-            wait(aggregator_future)
+        # Extract balances and calculate the total sum in a vectorized manner
+        chunk_balances = filtered_chunk['balance'].tolist()
+        chunk_total_sum = filtered_chunk['balance'].sum()
+
+        balances.extend(chunk_balances)
+        total_sum += chunk_total_sum
+        
+        # save each chunk by selecting the addresses that were used in the no_redistribution (0.0 redistribution) Gini calculation
+        if percentage == 0.0:
+            no_redistribution_addresses.extend(chunk_balances)
+
+            no_redistribution_balances.extend(chunk_balances)
+            no_redistribution_total_sum += chunk_total_sum
+        else:
+            same_chunk = chunk[
+                (chunk['address'].isin(no_redistribution_addresses))
+            ]
+
+            chunk_no_redistribution_balances = same_chunk['balance'].tolist()
+            chunk_no_redistribution_total_sum = same_chunk['balance'].sum()
+
+            no_redistribution_balances.extend(chunk_no_redistribution_balances)
+            no_redistribution_total_sum += chunk_no_redistribution_total_sum
 
     balances_array = np.array(balances, dtype=np.float64)
     balances_array_sorted = np.sort(balances_array)
-    less_balances_array = np.array(less_balances, dtype=np.float64)
-    less_balances_array_sorted = np.sort(less_balances_array)
+    no_redistribution_balances_array = np.array(no_redistribution_balances, dtype=np.float64)
+    no_redistribution_balances_array_sorted = np.sort(no_redistribution_balances_array)
 
-    return balances_array_sorted, total_sum, less_balances_array_sorted, less_total_sum
+    return balances_array_sorted, total_sum, no_redistribution_balances_array_sorted, no_redistribution_total_sum
 
 def main():
     metric_type = 'normal'
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'weight_based'
+    redistribution_type = 'circular_queue_equal'
     redistribution_amount = 'fees'
     redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
@@ -116,16 +102,16 @@ def main():
     ginis = {}
     nakamotos = {}
 
-    ginis_less = {}
-    nakamotos_less = {}
+    ginis_no_redistribution = {}
+    nakamotos_no_redistribution = {}
 
     dir_files = os.path.join(dir_results, metric_type, addresses, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
 
     gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
     nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
-    gini_all_file = f'{dir_files}/total_gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
-    nakamoto_all_file = f'{dir_files}/total_nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
+    gini_no_redistribution_file = f'{dir_files}/gini_coefficient_no_redistribution_{redistribution_type}_{redistribution_amount}.png'
+    nakamoto_no_redistribution_file = f'{dir_files}/nakamoto_coefficient_no_redistribution_{redistribution_type}_{redistribution_amount}.png'
 
     for i in range(0, 11):
         percentage = i / 10
@@ -139,23 +125,23 @@ def main():
         elif addresses == 'multi_input':
             multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
         
-        balances_array_sorted, total_sum, less_balances_array_sorted, less_total_sum = read_csv_file(csv_file)
+        balances_array_sorted, total_sum, no_redistribution_balances_array_sorted, no_redistribution_total_sum = read_csv_file(csv_file, percentage)
         
         gini_coefficient = gini(balances_array_sorted, total_sum)
         ginis[percentage] = gini_coefficient
         nakamoto_coefficient = nakamoto(balances_array_sorted, total_sum)
         nakamotos[percentage] = nakamoto_coefficient
 
-        gini_coefficient = gini(less_balances_array_sorted, less_total_sum)
-        ginis_less[percentage] = gini_coefficient
-        nakamoto_coefficient = nakamoto(less_balances_array_sorted, less_total_sum)
-        nakamotos_less[percentage] = nakamoto_coefficient
+        gini_coefficient = gini(no_redistribution_balances_array_sorted, no_redistribution_total_sum)
+        ginis_no_redistribution[percentage] = gini_coefficient
+        nakamoto_coefficient = nakamoto(no_redistribution_balances_array_sorted, no_redistribution_total_sum)
+        nakamotos_no_redistribution[percentage] = nakamoto_coefficient
     
     plot_gini_coefficient(ginis, gini_file)
     plot_nakamoto_coefficient(nakamotos, nakamoto_file)
 
-    plot_gini_coefficient(ginis_less, gini_all_file)
-    plot_nakamoto_coefficient(nakamotos_less, nakamoto_all_file)
+    plot_gini_coefficient(ginis_no_redistribution, gini_no_redistribution_file)
+    plot_nakamoto_coefficient(nakamotos_no_redistribution, nakamoto_no_redistribution_file)
 
 if __name__ == '__main__':
     main()
