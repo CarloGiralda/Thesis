@@ -320,9 +320,12 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
         # because the previous operations rounded down the values, something is left
         difference = max_redistribution - np.sum(redistributed_amounts)
         if difference > 0:
+            # np.argpartition divides the array by putting the element that would be in position -difference- in a sorted array in that position 
+            # and the elements that are smaller before, while the elements that are bigger after it
+            # the array on which it works is the inverse of the inverse_weights because by doing so we can select the elements that have the bigger weights (so, the smallest balances)
+            # the np.argpartition returns the indices of these elements and by slicing we take only the first -difference- ones
             largest_indices = np.argpartition(-inverse_weights, difference)[:difference]
-            top_sorted_indices = largest_indices[np.argsort(-inverse_weights[largest_indices])]
-            redistributed_amounts[top_sorted_indices] += 1
+            redistributed_amounts[largest_indices] += 1
 
         if METRICS:
             masked_redistributed_amounts = redistributed_amounts[mask]

@@ -30,7 +30,7 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      'bc1q7ramrn7krmgl8ja8vjm9g25a5t98l6kfyqgewe', '3L41yRzWATBFS3TSHGxFAJiTxahB94MpcQ', 'bc1q0dfgg0phamhxyntrenylv98epwn69fq9mwmaz0', 
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
-def _process_balance_chunk(chunk):
+def _process_redistribution_balance_chunk(chunk):
     # save each chunk by selecting only addresses that satisfy the assumptions
     filtered_chunk = chunk[
             (~chunk['address'].isin(known_wallets)) & (chunk['balance'] >= 100000)
@@ -42,7 +42,7 @@ def _process_balance_chunk(chunk):
 
     return chunk_balances, chunk_total_sum
 
-def read_csv_file(csv_file, percentage ,chunk_size=10000000):
+def read_redistribution_csv_file(csv_file, percentage ,chunk_size=10000000):
     balances = []
     total_sum = 0
 
@@ -68,7 +68,50 @@ def read_csv_file(csv_file, percentage ,chunk_size=10000000):
         
         with ProcessPoolExecutor() as processors:
             for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc=f'Reading accounts_{percentage} file in chunks'):
-                aggregation_queue.put(processors.submit(_process_balance_chunk, chunk))
+                aggregation_queue.put(processors.submit(_process_redistribution_balance_chunk, chunk))
+            
+            aggregation_queue.put(None)
+            
+            wait(aggregator_future)
+
+    balances_array = np.array(balances, dtype=np.float64)
+    balances_array_sorted = np.sort(balances_array)
+
+    return balances_array_sorted, total_sum
+
+def _process_only_redistribution_balance_chunk(chunk):
+    # Extract balances and calculate the total sum in a vectorized manner
+    local_balances = chunk['redistribution'].tolist()
+    local_total_sum = chunk['redistribution'].sum()
+
+    return local_balances, local_total_sum
+
+def read_only_redistribution_csv_file(csv_file, percentage, chunk_size=10000000):
+    balances = []
+    total_sum = 0
+
+    aggregation_queue = Queue(maxsize=10)
+            
+    def aggregate_results():
+        nonlocal total_sum
+
+        while True:
+            local_variables = aggregation_queue.get()
+            if local_variables == None:
+                break
+                
+            local_balances, local_total_sum = local_variables.result()
+            balances.extend(local_balances)
+            total_sum += local_total_sum
+
+        return balances, total_sum
+    
+    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
+        aggregator_future = [aggregator_executor.submit(aggregate_results)]
+        
+        with ProcessPoolExecutor() as processors:
+            for chunk in tqdm(pd.read_csv(csv_file, chunksize=chunk_size), desc=f'Reading accounts_{percentage} file in chunks'):
+                aggregation_queue.put(processors.submit(_process_only_redistribution_balance_chunk, chunk))
             
             aggregation_queue.put(None)
             

@@ -39,3 +39,35 @@ def plot_nakamoto_coefficient(nakamoto_coefficients, nakamoto_file):
     plt.yscale('log')
     plt.tight_layout()
     plt.savefig(nakamoto_file)
+
+def plot_multiple_gini_coefficients(list_of_gini_coefficients, gini_file):
+    indexes_to_redistribution_types = {0: 'equal', 1: 'almost_equal', 2: 'no_minimum_equal', 3: 'circular_queue_equal'}
+
+    plt.figure(figsize=(10, 6))
+    # plot each dictionary as a line
+    for index, d in enumerate(list_of_gini_coefficients):
+        x = list(d.keys())
+        y = list(d.values())
+        plt.plot(x, y, label=indexes_to_redistribution_types[index])
+
+    plt.xlabel('Percentage of redistribution')
+    plt.ylabel('Gini coefficient')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(gini_file)
+
+def plot_multiple_nakamoto_coefficients(list_of_nakamoto_coefficients, nakamoto_file):
+    indexes_to_redistribution_types = {0: 'equal', 1: 'almost_equal', 2: 'no_minimum_equal', 3: 'circular_queue_equal'}
+
+    plt.figure(figsize=(10, 6))
+    # plot each dictionary as a line
+    for index, d in enumerate(list_of_nakamoto_coefficients):
+        x = list(d.keys())
+        y = list(d.values())
+        plt.plot(x, y, label=indexes_to_redistribution_types[index])
+
+    plt.xlabel('Percentage of redistribution')
+    plt.ylabel('Nakamoto coefficient')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(nakamoto_file)

@@ -4,10 +4,10 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import plot_gini_coefficient, plot_nakamoto_coefficient
 from redistribution_space.no_redistribution import no_redistribution
 from redistribution_space.adjusted_redistribution_paradise import adjusted_redistribution_paradise
-from utils import *
+from utils import read_redistribution_csv_file
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
-dir_results = '/home/carlo/HDD/Shared/' # Directory where to store the results
+dir_results = './result/WorkstationResults/' # Directory where to store the results
 config_file = './data_dungeon/only_redistribution_space/config.yaml'
 
 def main():
@@ -48,7 +48,7 @@ def main():
             elif addresses == 'multi_input':
                 pass
 
-            balances_array_sorted, total_sum = read_csv_file(csv_file, percentage)
+            balances_array_sorted, total_sum = read_redistribution_csv_file(csv_file, percentage)
             
             gini_coefficient = gini(balances_array_sorted, total_sum)
             ginis[percentage] = gini_coefficient

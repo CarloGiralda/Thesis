@@ -343,9 +343,7 @@ def perform_redistribution(redistribution_type, redistribution_amount, redistrib
             # the array on which it works is the inverse of the inverse_weights because by doing so we can select the elements that have the bigger weights (so, the smallest balances)
             # the np.argpartition returns the indices of these elements and by slicing we take only the first -difference- ones
             largest_indices = np.argpartition(-inverse_weights, difference)[:difference]
-            # np.argsort orders the inverse of the inverse_weights largest indices to return them in an ordered way (by re-ordering them through slicing)
-            top_sorted_indices = largest_indices[np.argsort(-inverse_weights[largest_indices])]
-            redistributed_amounts[top_sorted_indices] += 1
+            redistributed_amounts[largest_indices] += 1
         
         eligible_accounts.first_list += redistributed_amounts
         eligible_accounts.second_list += redistributed_amounts
