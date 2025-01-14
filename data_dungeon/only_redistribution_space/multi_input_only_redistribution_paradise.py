@@ -123,7 +123,7 @@ def perform_block_transactions(address_to_user, eligible_accounts, non_eligible_
             payment = output['Value']
 
             if extra_fee_percentage > 0.0:
-                extra_fee_percentage_per_output = math.ceil(extra_fee_percentage * payment)
+                extra_fee_percentage_per_output = math.floor(extra_fee_percentage * payment)
                 total_extra_fee_percentage += extra_fee_percentage_per_output
 
             if isinstance(receiver, list):
