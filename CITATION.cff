@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Giralda"
+  given-names: "Carlo"
+title: "Study on the redistribution of wealth on blockchain"
+version: 2.0.4
+date-released: 2025-1-31
+url: "https://github.com/CarloGiralda/Thesis"
