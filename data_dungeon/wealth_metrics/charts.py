@@ -40,6 +40,29 @@ def plot_nakamoto_coefficient(nakamoto_coefficients, nakamoto_file):
     plt.tight_layout()
     plt.savefig(nakamoto_file)
 
+def plot_gini_coefficient_for_taxation(gini_coefficients, gini_file):
+    percentages = list(gini_coefficients.keys())
+    ginis = list(gini_coefficients.values())
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(percentages, ginis)
+    plt.xlabel('Percentage of taxation on each transaction')
+    plt.ylabel('Gini coefficient')
+    plt.tight_layout()
+    plt.savefig(gini_file)
+
+def plot_nakamoto_coefficient_for_taxation(nakamoto_coefficients, nakamoto_file):
+    percentages = list(nakamoto_coefficients.keys())
+    nakamotos = list(nakamoto_coefficients.values())
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(percentages, nakamotos)
+    plt.xlabel('Percentage of taxation on each transaction')
+    plt.ylabel('Nakamoto coefficient')
+    plt.yscale('log')
+    plt.tight_layout()
+    plt.savefig(nakamoto_file)
+
 def plot_multiple_gini_coefficients(list_of_gini_coefficients, gini_file):
     indexes_to_redistribution_types = {0: 'equal', 1: 'almost_equal', 2: 'no_minimum_equal', 3: 'circular_queue_equal'}
 
