@@ -5,7 +5,7 @@ from wealth_metrics.charts import plot_gini_coefficient, plot_nakamoto_coefficie
 from redistribution_space.redistribution_paradise import redistribution_paradise
 from redistribution_space.no_redistribution import no_redistribution
 from redistribution_space.multi_input_redistribution_paradise import multi_input_redistribution_paradise
-from utils import read_redistribution_csv_file
+from utils import read_redistribution_csv_file, read_multi_input_redistribution_csv_file
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
 dir_results = './result/WorkstationResults' # Directory where to store the results
@@ -45,10 +45,12 @@ def main():
 
             if addresses == 'single_input':
                 redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
+            
+                balances_array_sorted, total_sum = read_redistribution_csv_file(csv_file, percentage)
             elif addresses == 'multi_input':
                 multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
             
-            balances_array_sorted, total_sum = read_redistribution_csv_file(csv_file, percentage)
+                balances_array_sorted, total_sum = read_multi_input_redistribution_csv_file(csv_file, percentage)
             
             gini_coefficient = gini(balances_array_sorted, total_sum)
             ginis[percentage] = gini_coefficient

@@ -79,6 +79,78 @@ def read_redistribution_csv_file(csv_file, percentage ,chunk_size=10000000):
 
     return balances_array_sorted, total_sum
 
+def _process_multi_input_redistribution_balance_chunk(chunk, users):
+    # save each chunk by selecting only addresses that satisfy the assumptions
+    filtered_chunk = chunk[
+            (chunk['user'].isin(users)) & (chunk['balance'] >= 100000)
+        ]
+        
+    # Extract balances and calculate the total sum in a vectorized manner
+    chunk_balances = filtered_chunk['balance'].tolist()
+    chunk_total_sum = filtered_chunk['balance'].sum()
+
+    return chunk_balances, chunk_total_sum
+
+def _process_multi_input_redistribution_account_chunk(chunk):
+    # save each chunk by selecting only addresses that satisfy the assumptions
+    filtered_chunk = chunk[
+            (chunk['address'].isin(known_wallets))
+        ]
+        
+    to_be_deleted = filtered_chunk['user'].tolist()
+    all = chunk['user'].tolist()
+
+    return to_be_deleted, all
+
+def read_multi_input_redistribution_csv_file(csv_file_accounts, csv_file_balances, percentage ,chunk_size=10000000):
+    aggregation_queue = Queue(maxsize=10)
+
+    users = []
+    to_be_deleted_users = []
+
+    balances = []
+    total_sum = 0
+
+    def aggregate_results():
+        nonlocal total_sum
+
+        while True:
+            local_variables = aggregation_queue.get()
+            if local_variables == None:
+                break
+                
+            chunk_balances, chunk_total_sum = local_variables.result()
+            
+            balances.extend(chunk_balances)
+            total_sum += chunk_total_sum
+
+        return balances, total_sum
+    
+    with ProcessPoolExecutor() as processors:
+        for chunk in tqdm(pd.read_csv(csv_file_accounts, chunksize=chunk_size), desc=f'Reading accounts_{percentage} file in chunks'):
+            to_be_deleted, all = processors.submit(_process_multi_input_redistribution_account_chunk, chunk)
+
+            to_be_deleted_users.extend(to_be_deleted)
+            users.extend(all)
+
+    users = users - to_be_deleted_users
+
+    with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
+        aggregator_future = [aggregator_executor.submit(aggregate_results)]
+
+        with ProcessPoolExecutor() as processors:
+            for chunk in tqdm(pd.read_csv(csv_file_balances, chunksize=chunk_size), desc=f'Reading balances_{percentage} file in chunks'):
+                aggregation_queue.put(processors.submit(_process_multi_input_redistribution_balance_chunk, chunk, users))
+            
+            aggregation_queue.put(None)
+            
+            wait(aggregator_future)
+
+    balances_array = np.array(balances, dtype=np.float64)
+    balances_array_sorted = np.sort(balances_array)
+
+    return balances_array_sorted, total_sum
+
 def _process_only_redistribution_balance_chunk(chunk):
     # Extract balances and calculate the total sum in a vectorized manner
     local_balances = chunk['redistribution'].tolist()

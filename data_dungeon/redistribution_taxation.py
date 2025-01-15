@@ -27,7 +27,7 @@ def main():
     gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
     nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
-    for i in (10 ** p for p in range(1, 6)):
+    for i in (10 ** p for p in range(1, 7)):
         fee_percentage = 1 / i
 
         print('Percentage: ', fee_percentage)
