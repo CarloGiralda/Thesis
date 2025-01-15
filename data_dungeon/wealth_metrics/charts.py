@@ -65,8 +65,7 @@ def plot_nakamoto_coefficient_for_taxation(nakamoto_coefficients, nakamoto_file)
     plt.tight_layout()
     plt.savefig(nakamoto_file)
 
-def plot_multiple_gini_coefficients(list_of_gini_coefficients, gini_file):
-    indexes_to_redistribution_types = {0: 'equal', 1: 'almost_equal', 2: 'no_minimum_equal', 3: 'circular_queue_equal'}
+def plot_multiple_gini_coefficients(list_of_gini_coefficients, gini_file, indexes_to_redistribution_types):
 
     plt.figure(figsize=(10, 6))
     # plot each dictionary as a line
@@ -81,8 +80,7 @@ def plot_multiple_gini_coefficients(list_of_gini_coefficients, gini_file):
     plt.tight_layout()
     plt.savefig(gini_file)
 
-def plot_multiple_nakamoto_coefficients(list_of_nakamoto_coefficients, nakamoto_file):
-    indexes_to_redistribution_types = {0: 'equal', 1: 'almost_equal', 2: 'no_minimum_equal', 3: 'circular_queue_equal'}
+def plot_multiple_nakamoto_coefficients(list_of_nakamoto_coefficients, nakamoto_file, indexes_to_redistribution_types):
 
     plt.figure(figsize=(10, 6))
     # plot each dictionary as a line
