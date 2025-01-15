@@ -8,15 +8,15 @@ from redistribution_space.multi_input_redistribution_paradise import multi_input
 from utils import read_redistribution_csv_file, read_multi_input_redistribution_csv_file
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
-dir_results = './result/WorkstationResults' # Directory where to store the results
+dir_results = '/home/carlo/HDD/Shared/' # Directory where to store the results
 
 def main():
     metric_type = 'normal'
-    addresses = 'single_input'
+    addresses = 'multi_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'weight_based'
-    redistribution_amount = 'block_reward'
+    redistribution_type = 'circular_queue_equal'
+    redistribution_amount = 'fees'
     redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
     redistribution_user_percentage = 1.0
@@ -41,16 +41,17 @@ def main():
 
             print('Percentage: ', percentage)
 
-            csv_file = f'{dir_files}/accounts_{percentage}.csv'
-
             if addresses == 'single_input':
                 redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
             
+                csv_file = f'{dir_files}/accounts_{percentage}.csv'
                 balances_array_sorted, total_sum = read_redistribution_csv_file(csv_file, percentage)
             elif addresses == 'multi_input':
                 multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type, percentage, redistribution_amount, redistribution_minimum, redistribution_maximum, redistribution_user_percentage, extra_fee_amount, extra_fee_percentage)
             
-                balances_array_sorted, total_sum = read_multi_input_redistribution_csv_file(csv_file, percentage)
+                csv_file_accounts = f'{dir_files}/accounts_{percentage}.csv'
+                csv_file_balances = f'{dir_files}/balances_{percentage}.csv'
+                balances_array_sorted, total_sum = read_multi_input_redistribution_csv_file(csv_file_accounts, csv_file_balances, percentage)
             
             gini_coefficient = gini(balances_array_sorted, total_sum)
             ginis[percentage] = gini_coefficient

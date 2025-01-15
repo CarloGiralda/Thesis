@@ -98,15 +98,15 @@ def _process_multi_input_redistribution_account_chunk(chunk):
         ]
         
     to_be_deleted = filtered_chunk['user'].tolist()
-    all = chunk['user'].tolist()
+    all_users = chunk['user'].tolist()
 
-    return to_be_deleted, all
+    return to_be_deleted, all_users
 
 def read_multi_input_redistribution_csv_file(csv_file_accounts, csv_file_balances, percentage ,chunk_size=10000000):
     aggregation_queue = Queue(maxsize=10)
 
-    users = []
-    to_be_deleted_users = []
+    users = set([])
+    to_be_deleted_users = set([])
 
     balances = []
     total_sum = 0
@@ -128,12 +128,13 @@ def read_multi_input_redistribution_csv_file(csv_file_accounts, csv_file_balance
     
     with ProcessPoolExecutor() as processors:
         for chunk in tqdm(pd.read_csv(csv_file_accounts, chunksize=chunk_size), desc=f'Reading accounts_{percentage} file in chunks'):
-            to_be_deleted, all = processors.submit(_process_multi_input_redistribution_account_chunk, chunk)
+            future = processors.submit(_process_multi_input_redistribution_account_chunk, chunk)
+            to_be_deleted, all_users = future.result()
 
-            to_be_deleted_users.extend(to_be_deleted)
-            users.extend(all)
+            to_be_deleted_users.update(to_be_deleted)
+            users.update(all_users)
 
-    users = users - to_be_deleted_users
+    users = users.difference(to_be_deleted_users)
 
     with ThreadPoolExecutor(max_workers=1) as aggregator_executor:
         aggregator_future = [aggregator_executor.submit(aggregate_results)]
