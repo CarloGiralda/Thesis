@@ -8,18 +8,18 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import lorenz_curve
 from database.multi_input_accounts_database import create_connection, retrieve_user_from_address
 
-metric_type = 'adjusted_normal'
+metric_type = 'normal'
 address_grouping = 'single_input'
-redistribution_type = 'no_redistribution'
+redistribution_type = 'circular_queue_equal'
 redistribution_amount = 'fees'
-percentage = 0.0
+percentage = 1.0
 user_percentage = 1.0
 extra_fee_amount = 0
 extra_fee_percentage = 0.0
 minimum = 100000
 maximum = 2100000000000000
 
-directory = '/home/carlo/HDD/Shared'
+directory = './result/WorkstationResults'
 csv_file = f'{directory}/{metric_type}/{address_grouping}/{redistribution_type}/{redistribution_amount}/{minimum}_{maximum}_{user_percentage}_{extra_fee_amount}_{extra_fee_percentage}/accounts_{percentage}.csv' if redistribution_type != 'no_redistribution' else f'{directory}/{metric_type}/{address_grouping}/accounts_no_redistribution.csv'
 
 chunk_size = 10000000

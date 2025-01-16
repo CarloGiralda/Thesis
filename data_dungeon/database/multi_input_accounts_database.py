@@ -53,7 +53,7 @@ def retrieve_non_eligible_accounts(conn, minimum, maximum):
 def retrieve_all_accounts(conn):
     rows = []
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM accounts JOIN addresses ON accounts.user = addresses.user;")
+    cursor.execute("SELECT addresses.address, accounts.user, accounts.balance FROM accounts JOIN addresses ON accounts.user = addresses.user;")
     rows = cursor.fetchall()
     return rows
 

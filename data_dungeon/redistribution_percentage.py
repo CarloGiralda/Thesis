@@ -4,6 +4,7 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import plot_gini_coefficient, plot_nakamoto_coefficient
 from redistribution_space.redistribution_paradise import redistribution_paradise
 from redistribution_space.no_redistribution import no_redistribution
+from redistribution_space.multi_input_no_redistribution import multi_input_no_redistribution
 from redistribution_space.multi_input_redistribution_paradise import multi_input_redistribution_paradise
 from utils import read_redistribution_csv_file, read_multi_input_redistribution_csv_file
 
@@ -11,12 +12,12 @@ dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
 dir_results = './result/WorkstationResults' # Directory where to store the results
 
 def main():
-    metric_type = 'normal'
+    metric_type = 'r_normal'
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'weight_based'
-    redistribution_amount = 'block_reward'
+    redistribution_type = 'circular_queue_equal'
+    redistribution_amount = 'fees'
     redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
     redistribution_user_percentage = 1.0
@@ -25,7 +26,7 @@ def main():
         no_redistribution(dir_sorted_blocks, dir_results, metric_type)
 
     elif redistribution_type == 'no_redistribution' and addresses == 'multi_input':
-        pass
+        multi_input_no_redistribution(dir_sorted_blocks, dir_results, metric_type)
     
     else:
         ginis = {}
@@ -36,7 +37,7 @@ def main():
         gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
         nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
-        for i in range(0, 11):
+        for i in range(10, 11):
             percentage = i / 10
 
             print('Percentage: ', percentage)

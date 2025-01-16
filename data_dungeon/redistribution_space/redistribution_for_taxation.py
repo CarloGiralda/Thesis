@@ -95,10 +95,8 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
             sender = input['Sender']
             payment = input['Value']
 
-            if isinstance(sender, list):
+            if sender == 'INVALID' or sender == 'UNKNOWN':
                 continue
-            if isinstance(sender, bytes):
-                sender = sender.decode('utf-8')
 
             eligible_accounts, non_eligible_accounts = perform_input_output(
                 sender, payment, 0, 
@@ -116,10 +114,8 @@ def perform_block_transactions(eligible_accounts, non_eligible_accounts,
                 extra_fee_percentage_per_output = int(math.floor(extra_fee_percentage * payment))
                 total_extra_fee_percentage += extra_fee_percentage_per_output
 
-            if isinstance(receiver, list):
+            if receiver == 'INVALID' or receiver == 'UNKNOWN':
                 continue
-            if isinstance(receiver, bytes):
-                receiver = receiver.decode('utf-8')
 
             eligible_accounts, non_eligible_accounts = perform_input_output(
                 receiver, payment, 1, 
@@ -156,10 +152,8 @@ def perform_coinbase_transaction(block, block_redistribution, redistribution_min
         additional_payment = int(math.floor(remaining_from_extra_fee * second_ratio))
         payment += additional_payment
 
-        if isinstance(receiver, list):
+        if receiver == 'INVALID' or receiver == 'UNKNOWN':
             continue
-        if isinstance(receiver, bytes):
-            receiver = receiver.decode('utf-8')
 
         if payment > 0:
             eligible_accounts, non_eligible_accounts = perform_input_output(

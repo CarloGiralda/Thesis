@@ -93,7 +93,7 @@ def multi_input_address_clustering(dir_sorted_blocks):
 
             for input in inputs:
                 sender = input['Sender']
-                if isinstance(sender, list) or sender == 'INVALID' or sender is None:
+                if isinstance(sender, list) or sender == 'INVALID' or sender == 'UNKNOWN' or sender is None:
                     continue
                 if isinstance(sender, bytes):
                     sender = sender.decode('utf-8')
