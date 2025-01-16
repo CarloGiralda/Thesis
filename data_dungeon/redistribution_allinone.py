@@ -4,7 +4,7 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import plot_multiple_gini_coefficients, plot_multiple_nakamoto_coefficients
 from utils import read_redistribution_csv_file
 
-dir_results = './result/WorkstationResults' # Directory where to store the results
+dir_results = '/home/carlo/HDD/Shared/' # Directory where to store the results
 
 def main():
     metric_type = 'normal'
@@ -15,7 +15,6 @@ def main():
     redistribution_maximum = 2100000000000000
     redistribution_user_percentage = 1.0
 
-    redistribution_type_amount = {'equal': 'fees', 'circular_queue_equal': 'fees', 'weight_based': 'fees', 'weight_based': 'block_reward'}
     indexes_to_redistribution_types = {0: 'equal\nfees', 1: 'circular_queue_equal\nfees', 2: 'weight_based\nfees', 3: 'weight_based\nblock_reward'}
 
     dir_general = os.path.join(dir_results, metric_type, addresses)
@@ -26,7 +25,8 @@ def main():
     gini_file = f'{dir_general}/gini_coefficient.png'
     nakamoto_file = f'{dir_general}/nakamoto_coefficient.png'
 
-    for index, (redistribution_type, redistribution_amount) in enumerate(redistribution_type_amount.items()):
+    for index, redistribution_type_amount in indexes_to_redistribution_types.items():
+        redistribution_type, redistribution_amount = redistribution_type_amount.split('\n')
         print(f'Reading {redistribution_type} {redistribution_amount} redistribution files...')
         dir_files = os.path.join(dir_general, redistribution_type, redistribution_amount, f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}')
         
