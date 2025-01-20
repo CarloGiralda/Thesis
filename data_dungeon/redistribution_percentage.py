@@ -9,14 +9,14 @@ from redistribution_space.multi_input_redistribution_paradise import multi_input
 from utils import read_redistribution_csv_file, read_multi_input_redistribution_csv_file
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
-dir_results = '/home/carlo/HDD/Shared/' # Directory where to store the results
+dir_results = './result/WorkstationResults' # Directory where to store the results
 
 def main():
-    metric_type = 'r_normal'
+    metric_type = 'normal'
     addresses = 'single_input'
     extra_fee_amount = 0
     extra_fee_percentage = 0.0
-    redistribution_type = 'circular_queue_equal'
+    redistribution_type = 'no_redistribution'
     redistribution_amount = 'fees'
     redistribution_minimum = 100000
     redistribution_maximum = 2100000000000000
@@ -37,7 +37,7 @@ def main():
         gini_file = f'{dir_files}/gini_coefficient_{redistribution_type}_{redistribution_amount}.png'
         nakamoto_file = f'{dir_files}/nakamoto_coefficient_{redistribution_type}_{redistribution_amount}.png'
 
-        for i in range(10, 11):
+        for i in range(0, 11):
             percentage = i / 10
 
             print('Percentage: ', percentage)

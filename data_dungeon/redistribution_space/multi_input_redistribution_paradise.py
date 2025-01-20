@@ -550,8 +550,9 @@ def multi_input_redistribution_paradise(dir_sorted_blocks, dir_results, redistri
 
                     pbar.update(1)
 
-    # plot_balance_histogram(path_accounts)
     if METRICS:
+        plot_balance_histogram(path_accounts)
+        
         if redistribution_type == 'equal':
             plot_linear_redistribution_histogram(path_redistribution)
         elif redistribution_type == 'almost_equal':

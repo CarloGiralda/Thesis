@@ -4,7 +4,7 @@ from wealth_metrics.nakamoto_coefficient import nakamoto
 from wealth_metrics.charts import plot_multiple_gini_coefficients, plot_multiple_nakamoto_coefficients
 from utils import read_redistribution_csv_file
 
-dir_results = '/home/carlo/HDD/Shared/' # Directory where to store the results
+dir_results = './result/WorkstationResults' # Directory where to store the results
 
 def main():
     metric_type = 'normal'

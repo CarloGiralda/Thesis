@@ -3,7 +3,7 @@ from only_redistribution_space.only_redistribution_paradise import only_redistri
 from only_redistribution_space.multi_input_only_redistribution_paradise import multi_input_only_redistribution_paradise
 
 dir_sorted_blocks = './result/blocks/' # Directory where sorted blocks are saved
-dir_results = './results_HDD/' # Directory where to store the results
+dir_results = './result/WorkstationResults' # Directory where to store the results
 config_file = './data_dungeon/only_redistribution_space/config.yaml'
 
 def main():

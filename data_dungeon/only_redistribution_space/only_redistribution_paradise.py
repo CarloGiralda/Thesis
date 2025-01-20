@@ -10,6 +10,8 @@ from only_redistribution_space.utils import DictionaryDoubleList, DoubleDictiona
 from redistribution_space.utils import get_block, extract_height_from_name, distribute
 from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
+METRICS = True
+
 # number of readers for blocks
 num_readers = 2
 
@@ -540,5 +542,5 @@ def only_redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_
                     csv_out.writerow((redistribution, balance))
 
                     pbar.update(1)
-
-    # plot_balance_line(path_accounts)
+    if METRICS:
+        plot_balance_line(path_accounts)

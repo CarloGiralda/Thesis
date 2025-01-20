@@ -10,7 +10,7 @@ from tqdm import tqdm
 from redistribution_space.utils import DoubleDictionaryList, get_block, extract_height_from_name, distribute, plot_balance_histogram, plot_linear_redistribution_histogram, plot_almost_equal_metrics, plot_weight_based_metrics, plot_stacked_histogram
 from database.accounts_database import create_connection, retrieve_eligible_accounts, retrieve_non_eligible_accounts
 
-METRICS = False
+METRICS = True
 
 # number of readers for blocks
 num_readers = 2
@@ -425,7 +425,7 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
     global lock
 
     folder = f'{redistribution_minimum}_{redistribution_maximum}_{redistribution_user_percentage}_{extra_fee_amount}_{extra_fee_percentage}'
-    dir_results_folder = os.path.join(dir_results, 'r_normal', 'single_input', redistribution_type, redistribution_amount, folder)
+    dir_results_folder = os.path.join(dir_results, 'normal', 'single_input', redistribution_type, redistribution_amount, folder)
     if not os.path.exists(dir_results_folder):
         os.makedirs(dir_results_folder)
 
@@ -525,8 +525,9 @@ def redistribution_paradise(dir_sorted_blocks, dir_results, redistribution_type,
 
                     pbar.update(1)
 
-    # plot_balance_histogram(path_accounts)
     if METRICS:
+        plot_balance_histogram(path_accounts)
+        
         if redistribution_type == 'equal':
             plot_linear_redistribution_histogram(path_redistribution)
         elif redistribution_type == 'almost_equal':

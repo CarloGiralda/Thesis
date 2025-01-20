@@ -1,7 +1,5 @@
-import operator
 import numpy as np
 from database import accounts_database as ad
-from database import multi_input_accounts_database as miad
 from wealth_metrics.gini_coefficient import gini
 from wealth_metrics.nakamoto_coefficient import nakamoto
 
@@ -31,36 +29,16 @@ known_wallets = set(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '12cbQLTFMXRnSzktFkuo
                      'bc1q7ramrn7krmgl8ja8vjm9g25a5t98l6kfyqgewe', '3L41yRzWATBFS3TSHGxFAJiTxahB94MpcQ', 'bc1q0dfgg0phamhxyntrenylv98epwn69fq9mwmaz0', 
                      '3E5EPMGRL5PC6YDCLcHLVu9ayC3DysMpau', 'bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f', 'bc1qmxcagqze2n4hr5rwflyfu35q90y22raxdgcp4p'])
 
-selection = 'normal'
-
 def main():
     minimum = 100000
     maximum = 2100000000000000
 
-    if selection == 'normal':
-        conn = ad.create_connection()
+    conn = ad.create_connection()
 
-        eligible_balances_list = []
-        for address, balance in ad.retrieve_eligible_accounts(conn, minimum, maximum):
-            if address not in known_wallets:
-                eligible_balances_list.append(balance)
-
-    elif selection == 'multi_input':
-        conn = miad.create_connection()
-
-        eligible_accounts = miad.retrieve_eligible_accounts(conn, minimum, maximum)
-
-        eligible_balances_list = []
-        not_eligible_users = []
-        # create a list for the non eligible users
-        for address, user, _ in eligible_accounts:
-            if address in known_wallets:
-                not_eligible_users.append(user)
-
-        # save only the eligible users
-        for _, user, balance in eligible_accounts:
-            if user not in not_eligible_users:
-                eligible_balances_list.append(balance)
+    eligible_balances_list = []
+    for address, balance in ad.retrieve_eligible_accounts(conn, minimum, maximum):
+        if address not in known_wallets:
+            eligible_balances_list.append(balance)
 
     eligible_balances = np.array(eligible_balances_list)
     eligible_balances_sorted = np.sort(eligible_balances)
