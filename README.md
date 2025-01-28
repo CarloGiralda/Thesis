@@ -5,15 +5,15 @@ The research explores how different redistribution strategies, particularly bloc
 ## 📜 Overview
 The project investigates:
 
-- Redistribution of block fees, block rewards, taxes on transactions among eligible addresses on Bitcoin.\
-- The impact of various redistribution strategies on wealth inequality.\
-- The use of Gini and Nakamoto coefficients as a measure of inequality in wealth distribution.\
+- Redistribution of block fees, block rewards, taxes on transactions among eligible addresses on Bitcoin.
+- The impact of various redistribution strategies on wealth inequality.
+- The use of Gini and Nakamoto coefficients as a measure of inequality in wealth distribution.
 
 ## Key Features
 Simulations: Implementation of blockchain transactions with redistribution mechanisms.\
 Analytics: Gini and Nakamoto coefficients computation to measure the inequality of wealth distribution.\
 Visualization: Plots and charts to illustrate the effects of different redistribution rates.\
-Flexibility: Configurable parameters, such as redistribution thresholds and algorithms.\
+Flexibility: Configurable parameters, such as redistribution thresholds and algorithms.
 
 ## 🚀 Getting Started
 Follow these steps to set up the project locally and begin your exploration:
@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
 ### Simulations
 Edit the configuration file (config.yaml) to adjust parameters like the redistribution rate, threshold, and transaction details.\
-Run the simulation (e.g., simple redistribution):\
+Run the simulation (e.g., simple redistribution):
 ````
 bash
 python redistribution.py
@@ -77,20 +77,27 @@ After running simulations, plots are automatically generated to visualize Gini c
 ## 📚 Research Insights
 
 ### Key Findings
-- Redistribution strategies directly impact wealth inequality.\
-- Equal distribution is a possible solution, as demonstrated in the simulations.\
-- Thresholds for redistribution play a critical role in influencing the outcomes.\
+- Redistribution strategies directly impact wealth inequality.
+- Equal distribution is a possible solution, as demonstrated in the simulations.
+- Thresholds for redistribution play a critical role in influencing the outcomes.
 - Inversely proportional redistribution showed promising results but requires careful calibration.
 ### Future Directions
-- Exploring more advanced redistribution algorithms, such as weighted or utility-based models.\
-- Expanding the simulation to incorporate real-world blockchain data.\
-- Integrating additional inequality metrics.\
+- Exploring more advanced redistribution algorithms, such as weighted or utility-based models.
+- Expanding the simulation to incorporate real-world blockchain data.
+- Integrating additional inequality metrics.
 
 ## 🤝 Contributing
-Contributions to this project are welcome! Please fork the repository, make your changes, and submit a pull request.\
+Contributions to this project are welcome! Please fork the repository, make your changes, and submit a pull request.
 
 ## 📄 License
 
 ## 🛠️ Acknowledgments
 Academic advisor: [Andrea Vitaletti]\
 Inspiration from existing research on blockchain economics and wealth redistribution.\
+This project incorporates code and concepts from the following repositories:
+1. **[blockchain-parser](https://github.com/ragestack/blockchain-parser)**
+   - Description: Used for implementing the block extraction.
+   - Author(s): ragestack
+2. **[python-bitcoin-blockchain-parser](https://github.com/alecalve/python-bitcoin-blockchain-parser)**
+   - Description: Used for implementing the block extraction.
+   - Author(s): alecalve
