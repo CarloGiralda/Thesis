@@ -90,16 +90,18 @@ After running simulations, plots are automatically generated to visualize Gini c
 Contributions to this project are welcome! Please fork the repository, make your changes, and submit a pull request.
 
 ## 📄 License
+GPL-3.0 license
 
 ## 🛠️ Acknowledgments
 Academic advisor: [Andrea Vitaletti]\
 Inspiration from existing research on blockchain economics and wealth redistribution.\
-This project incorporates code and concepts from the following repositories:
+This project incorporates code and concepts and modifies them for its purposes from the following repositories:
 1. **[blockchain-parser](https://github.com/ragestack/blockchain-parser)**
    - Description: Used for implementing the block extraction.
    - Author(s): ragestack
 2. **[python-bitcoin-blockchain-parser](https://github.com/alecalve/python-bitcoin-blockchain-parser)**
    - Description: Used for implementing the block extraction.
    - Author(s): alecalve
-To extract the UTXOs from the Bitcoin folder, the script from this repository was used:
+
+To extract the UTXOs from the Bitcoin folder, the script from this repository was used (no code was used):
  - **[bitcoin-utxo-dump](https://github.com/in3rsha/bitcoin-utxo-dump)**
