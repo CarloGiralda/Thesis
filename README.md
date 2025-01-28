@@ -18,20 +18,20 @@ Follow these steps to set up the project locally and begin your exploration:
 Prerequisites
 Python 3.8+
 Required libraries (listed in requirements.txt):
-numpy
-matplotlib
-pandas
-scipy
+  numpy
+  matplotlib
+  pandas
+  scipy
 Installation
 Clone the repository:
-bash
-git clone https://github.com/CarloGiralda/Thesis.git
+  bash
+  git clone https://github.com/CarloGiralda/Thesis.git
 Navigate to the project directory:
-bash
-cd Thesis
+  bash
+  cd Thesis
 Install dependencies:
-bash
-pip install -r requirements.txt
+  bash
+  pip install -r requirements.txt
 🧪 Usage
 Simulations
 
