@@ -101,3 +101,5 @@ This project incorporates code and concepts from the following repositories:
 2. **[python-bitcoin-blockchain-parser](https://github.com/alecalve/python-bitcoin-blockchain-parser)**
    - Description: Used for implementing the block extraction.
    - Author(s): alecalve
+To extract the UTXOs from the Bitcoin folder, the script from this repository was used:
+ - **[bitcoin-utxo-dump](https://github.com/in3rsha/bitcoin-utxo-dump)**
