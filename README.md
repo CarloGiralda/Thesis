@@ -25,18 +25,12 @@ scipy
 Installation
 Clone the repository:
 bash
-Copy
-Edit
 git clone https://github.com/CarloGiralda/Thesis.git
 Navigate to the project directory:
 bash
-Copy
-Edit
 cd Thesis
 Install dependencies:
 bash
-Copy
-Edit
 pip install -r requirements.txt
 🧪 Usage
 Simulations
@@ -44,17 +38,12 @@ Simulations
 Edit the configuration file (config.yaml) to adjust parameters like the redistribution rate, threshold, and transaction details.
 Run the simulation (e.g., simple redistribution):
 bash
-Copy
-Edit
 python redistribution.py
 Visualizations
 
 After running simulations, plots are automatically generated to visualize Gini coefficients and wealth distribution.
 
 📂 Repository Structure
-plaintext
-Copy
-Edit
 ├── data_dungeon/                     # Source code for simulations
 │   ├── database/                     # Source code for database interaction
 │   ├── file_parsing/                 # Source code for extraction of blocks from Bitcoin folder
